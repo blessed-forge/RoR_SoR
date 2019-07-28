@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ModuleFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-	<UiMod name="RoR_SoR" version="1.1.3" date="09/03/2019" >
+	<UiMod name="RoR_SoR" version="1.1.5" date="27/07/2019" >
 		<VersionSettings gameVersion="1.4.8" windowsVersion="1.0" savedVariablesVersion="1.0" />
 		<Author name="Sullemunk, Hargrim"/>
-		<Description text="Return of Realm" />
+		<Description text="Return of Realm, a warfront battle tracker" />
 		 <Dependencies>                
             <Dependency name="EATemplate_DefaultWindowSkin" />
             <Dependency name="EASystem_Utils" />

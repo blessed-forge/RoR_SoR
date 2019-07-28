@@ -1,5 +1,5 @@
 if not RoR_SoR then RoR_SoR= {} end
-local version = "112"
+local version = "115"
 local ZoneLockTimer = 10
 local RoR_Window_Scale
 
@@ -9,7 +9,19 @@ local c_DEFAULT_FADEOUT_TIMER = 0.3
 
 local Popper = {m_HideCountdown = c_DEFAULT_HIDE_TIMER, m_IsShowing = false,}
 
-if not RoR_SoR.Settings then RoR_SoR.Settings ={ShowT1 = true,ShowT4 = true,StackDir = 2} end
+if not RoR_SoR.Settings then RoR_SoR.Settings ={
+ShowT1 = true,
+ShowT4 = true,
+StackDir = 2,
+Offset = 15,
+Enabled = true,
+HideCombat = false,
+ShowForts = true,
+DrawBackground = true,
+DrawBanner = true,
+OnlyActive = false,
+} end
+
 
 RoR_SoR.DebugKeep = false
 RoR_SoR.DebugBO = false
@@ -17,11 +29,12 @@ RoR_SoR.DebugBO = false
 RoR_SoR.RealmColors = {{r=155,g=155,b=155},{r=107,g=191,b=255},{r=255,g=105,b=105}}
 RoR_SoR.CappingRealmColors = {{r=255,g=255,b=255},{r=255,g=105,b=105},{r=107,g=191,b=255}}
 RoR_SoR.T4_ActiveZones = {[3]=1,[5]=2,[9]=3,[103]=1,[105]=2,[109]=3,[209]=3,[205]=2,[203]=1}
---RoR_SoR.KeepLord = {[1] = "MurderballOrder",[2] = "MurderballDestruction"}
 RoR_SoR.Forts = {[4]=2,[10]=1,[104]=2,[110]=1,[204]=2,[210]=1}
 RoR_SoR.KeepLord = {[1] = "SoR_LordIcon",[2] = "SoR_LordIcon"}
-RoR_SoR.ZoneNames = {[1]={1,7},[2]={2,8},[6]={6,11},[7]={1,7},[8]={2,8},[11]={6,11},[100]={100,106},[101]={107,101},[102]={102,108},[106]={100,106},[107]={107,101},[108]={102,108},[200]={200,206},[201]={207,201},[202]={202,208},[206]={200,206},[207]={207,201},[208]={202,208}}
+RoR_SoR.ZoneNames = {[1]={1,7},[2]={2,8},[3]={3,3},[4]={4,4},[5]={5,5},[6]={6,11},[7]={1,7},[8]={2,8},[9]={9,9},[10]={10,10},[11]={6,11},[100]={100,106},[101]={107,101},[102]={102,108},[103]={103,103},[104]={104,108},[105]={105,105},[106]={100,106},[107]={107,101},[108]={102,108},[109]={109,109},[110]={110,110},[200]={200,206},[201]={207,201},[202]={202,208},[203]={203,203},[204]={204,204},[205]={205,205},[206]={200,206},[207]={207,201},[208]={202,208},[209]={209,209},[210]={210,210}}
 RoR_SoR.TierNames = {[1]={006,011,100,106,200,206},[2]={001,007,101,107,201,207},[3]={002,008,102,108,202,208},[4]={003,005,009,103,105,109,209,205,203}}
+RoR_SoR.ParingPortrait = {[1] = "PairingElvesSelected",[2] = "PairingEvCSelected",[3]="PairingGvDSelected"}
+RoR_SoR.KeepStatus = {}
 
 RoR_SoR.TextLock = towstring(GetStringFromTable("MapSystem", StringTables.MapSystem.TEXT_CAMPAIGN_PAIRING_LOCKED ) )
 RoR_SoR.TextZoneLocked =	towstring(GetStringFromTable("Hardcoded", 1268))
@@ -32,7 +45,6 @@ RoR_SoR.TextOrder = towstring(GetStringFromTable("Default", StringTables.Default
 RoR_SoR.TextDestro = towstring(GetStringFromTable("Default", StringTables.Default.LABEL_ORDER_CONTROLLED ) )
 
 
---103 CW,105 praag, 109 Reik 
 function RoR_SoR.OnInitialize()
 --This is for debugging
 RoR_SoR.Debug_T2_BO_Texts = {[1]=L"StreamName: ",[2]=L"ZoneID: ",[3]=L"BO1_ID: ",[4]=L"BO1_OWNER: ",[5]=L"BO1_STATE: ",[6]=L"BO1_TIMER: ",[7]=L"BO2_ID: ",
@@ -66,7 +78,10 @@ LayoutEditor.RegisterWindow( "RoR_SoR_Main_Window", L"SoR Anchor Window", L"SoR 
 LayoutEditor.RegisterWindow( "RoR_SoR_Button", L"SoR Toggle Button", L"SoR Toggle Button", false, false, false, nil )	
 	
 RegisterEventHandler( SystemData.Events.ENTER_WORLD, "RoR_SoR.Enable" )
-RegisterEventHandler( SystemData.Events.INTERFACE_RELOADED, "RoR_SoR.Enable" )							
+RegisterEventHandler( SystemData.Events.INTERFACE_RELOADED, "RoR_SoR.Enable" )	
+RegisterEventHandler( SystemData.Events.PLAYER_COMBAT_FLAG_UPDATED, "RoR_SoR.OnCombat" )
+
+						
 RegisterEventHandler(TextLogGetUpdateEventId("Chat"), "RoR_SoR.OnChatLogUpdated")
 TextLogAddEntry("Chat", 0, L"<icon00057> RoR_SoR "..towstring(version)..L" Loaded.")
 	
@@ -83,25 +98,35 @@ RoR_SoR.KEEP_IDs = {}
 RoR_SoR.HideChannel(65)
 RoR_SoR.Fort = {}
 
-if not RoR_SoR.Settings.Offset then RoR_SoR.Settings.Offset = 15 end
+--if not RoR_SoR.Settings.Offset then RoR_SoR.Settings.Offset = 15 end
+--if not RoR_SoR.Settings.Enabled then RoR_SoR.Settings.Enabled = true end
+--if not RoR_SoR.Settings.HideCombat then RoR_SoR.Settings.HideCombat = false end
+--if not RoR_SoR.Settings.ShowForts then RoR_SoR.Settings.ShowForts = true end
+--if not RoR_SoR.Settings.DrawBackground then RoR_SoR.Settings.DrawBackground = true end
+--if not RoR_SoR.Settings.DrawBanner then RoR_SoR.Settings.DrawBanner = true end
 
 	if (LibSlash ~= nil) then
 	LibSlash.RegisterSlashCmd("soroffset", function(input) RoR_SoR.Offset(input) end)
 	end
 
---Registers the /slash commands 
-
-
-
-
 WindowSetScale("RoR_SoR_Popper",RoR_Window_Scale)
+WindowSetShowing("RoR_SoR_ButtonCombat",false)
+
+RoR_SoR.HideChannel(65)
+local siegeWindow = "SiegeWeaponGeneralFireWindowChatLogDisplay"
+LogDisplaySetFilterState(siegeWindow, "Chat", 65, false)
+
+
+
+RoR_SoR.Restack()
 end
 
 function RoR_SoR.OnShutdown()
 	
 UnregisterEventHandler(TextLogGetUpdateEventId("Chat"), "RoR_SoR.OnChatLogUpdated")
 UnregisterEventHandler( SystemData.Events.ENTER_WORLD, "RoR_SoR.Enable" )
-UnregisterEventHandler( SystemData.Events.INTERFACE_RELOADED, "RoR_SoR.Enable" )			
+UnregisterEventHandler( SystemData.Events.INTERFACE_RELOADED, "RoR_SoR.Enable" )	
+UnregisterEventHandler( SystemData.Events.PLAYER_COMBAT_FLAG_UPDATED, "RoR_SoR.OnCombat" )		
 end
 
 function RoR_SoR.OnChatLogUpdated(updateType, filterType)
@@ -114,14 +139,49 @@ function RoR_SoR.OnChatLogUpdated(updateType, filterType)
 		end
 	end
 end
-function RoR_SoR.Enable()
-SendChatText(L".sorenable", L"")
+
+function RoR_SoR.HideChannel(channelId)
+	for _, wndGroup in ipairs(EA_ChatWindowGroups) do 
+		if wndGroup.used == true then
+			for tabId, tab in ipairs(wndGroup.Tabs) do
+				local tabName = EA_ChatTabManager.GetTabName( tab.tabManagerId )
+		
+				if tabName then
+					if tab.tabText ~= L"Debug" then
+						LogDisplaySetFilterState(tabName.."TextLog", "Chat", channelId, false)
+					else
+						LogDisplaySetFilterState(tabName.."TextLog", "Chat", channelId, true)
+						LogDisplaySetFilterColor(tabName.."TextLog", "Chat", channelId, 168, 187, 160 )
+					end
+				end
+				
+			end
+			
+		end
+		
+	end	
 end
 
 
+function RoR_SoR.GetParing(zone)
+local zone = tonumber(zone)
+	if (zone/200 >= 1) then 
+		return 1
+	elseif (zone/100 >= 1) then 
+		return 2
+	else
+		return 3
+	end	
+return false
+end
+
+function RoR_SoR.Enable()
+SendChatText(L".sorenable", L"")
+RoR_SoR.Restack()
+end
+
 function RoR_SoR.Text_Stream_Fetch(text)
 local text = towstring(text)
---TODO: Ask Hargrim to include outer door in T2 keep stream as an placeholder for the higher tiers (should be at stream possition 9)
 
 	if text:find(L"SoR_") and (not text:find(L"SoR_F")) then
 		--Check For BO stream
@@ -131,6 +191,11 @@ local text = towstring(text)
 
 		--Create window if not exist
 			local Window_Name = tostring(SoR_BO_SPLIT_TEXT_STREAM[2])
+			if RoR_SoR.Settings.OnlyActive == true then  
+				if (GameData.Player.zone ~= 161 and GameData.Player.zone ~= 162) then
+					if not (RoR_SoR.ZoneNames[GameData.Player.zone][1] == tonumber(Window_Name) or RoR_SoR.ZoneNames[GameData.Player.zone][2] == tonumber(Window_Name))then return end
+				end
+			end
 			--Setup Tier 4 BO zone stuff
 			if (SoR_BO_SPLIT_TEXT_STREAM[1] == "SoR_T4_BO") and (RoR_SoR.Settings.ShowT4 == true) then			
 				local Fetch_Active_Zone = tonumber(SoR_BO_SPLIT_TEXT_STREAM[22])
@@ -140,8 +205,9 @@ local text = towstring(text)
 							RoR_SoR.KEEP_States[Window_Name] = {}
 							local ZoneData = GetCampaignZoneData(tonumber(Window_Name))
 							RoR_SoR.OpenZones[Window_Name] =  tonumber(ZoneData.tierId)
-						LabelSetText("SoR_"..Window_Name.."BannerLabel",towstring(GetZoneName(tonumber(Window_Name))))
-						local BannerW,_ = LabelGetTextDimensions("SoR_"..Window_Name.."BannerLabel")
+						LabelSetText("SoR_"..Window_Name.."_BannerLabel",towstring(GetZoneName(tonumber(Window_Name))))
+						LabelSetTextColor("SoR_"..Window_Name.."_BannerLabel",255,255,255)
+						local BannerW,_ = LabelGetTextDimensions("SoR_"..Window_Name.."_BannerLabel")
 						WindowSetDimensions( "SoR_"..Window_Name.."BannerMid", BannerW, 40 )											
 					end
 			--Setup Tier 1 BO zone stuff	
@@ -151,8 +217,9 @@ local text = towstring(text)
 					RoR_SoR.BO_States[Window_Name] = {}
 					local ZoneData = GetCampaignZoneData(tonumber(Window_Name))
 					RoR_SoR.OpenZones[Window_Name] =  tonumber(ZoneData.tierId)
-					LabelSetText("SoR_"..Window_Name.."BannerLabel",towstring(GetZoneName(RoR_SoR.ZoneNames[tonumber(Window_Name)][1]))..L" � "..towstring(GetZoneName(RoR_SoR.ZoneNames[tonumber(Window_Name)][2])))	
-					local BannerW,_ = LabelGetTextDimensions("SoR_"..Window_Name.."BannerLabel")
+					LabelSetText("SoR_"..Window_Name.."_BannerLabel",towstring(GetZoneName(RoR_SoR.ZoneNames[tonumber(Window_Name)][1]))..L" � "..towstring(GetZoneName(RoR_SoR.ZoneNames[tonumber(Window_Name)][2])))	
+					LabelSetTextColor("SoR_"..Window_Name.."_BannerLabel",255,255,255)
+					local BannerW,_ = LabelGetTextDimensions("SoR_"..Window_Name.."_BannerLabel")
 					WindowSetDimensions( "SoR_"..Window_Name.."BannerMid", BannerW, 40 )						
 				end
 				RoR_SoR.T1_UPDATE(Window_Name,SoR_BO_SPLIT_TEXT_STREAM)	
@@ -164,8 +231,9 @@ local text = towstring(text)
 					local ZoneData = GetCampaignZoneData(tonumber(Window_Name))
 					RoR_SoR.OpenZones[Window_Name] =  tonumber(ZoneData.tierId)
 					RoR_SoR.KEEP_States[Window_Name] = {}
-					LabelSetText("SoR_"..Window_Name.."BannerLabel",towstring(GetZoneName(RoR_SoR.ZoneNames[tonumber(Window_Name)][1]))..L" � "..towstring(GetZoneName(RoR_SoR.ZoneNames[tonumber(Window_Name)][2])))	
-					local BannerW,_ = LabelGetTextDimensions("SoR_"..Window_Name.."BannerLabel")
+					LabelSetText("SoR_"..Window_Name.."_BannerLabel",towstring(GetZoneName(RoR_SoR.ZoneNames[tonumber(Window_Name)][1]))..L" � "..towstring(GetZoneName(RoR_SoR.ZoneNames[tonumber(Window_Name)][2])))	
+					LabelSetTextColor("SoR_"..Window_Name.."_BannerLabel",255,255,255)
+					local BannerW,_ = LabelGetTextDimensions("SoR_"..Window_Name.."_BannerLabel")
 					WindowSetDimensions( "SoR_"..Window_Name.."BannerMid", BannerW, 40 )						
 				end				
 			end		
@@ -181,13 +249,11 @@ local text = towstring(text)
 				end
 			end	
 		RoR_SoR.SET_BO(SoR_BO_SPLIT_TEXT_STREAM)
---		d(L"==============================================")
 
 		--Check for KEEP stream	
 		elseif text:match( L"SoR_+[^%.]+_Keep:([^%.]+).") then	
 			local SoR_KEEP_SPLIT_TEXT_STREAM = StringSplit(tostring(text), ":")
 			if SoR_KEEP_SPLIT_TEXT_STREAM[10] == nil then return end
-	--			if SoR_KEEP_SPLIT_TEXT_STREAM[1] == "SoR_T4_Keep" or SoR_KEEP_SPLIT_TEXT_STREAM[1] == "SoR_T3_Keep" then
 				if RoR_SoR.DebugKeep == true then
 					for i=1,#SoR_KEEP_SPLIT_TEXT_STREAM do
 						d(RoR_SoR.Debug_T3_KEEP_Texts[i]..towstring(SoR_KEEP_SPLIT_TEXT_STREAM[i]))
@@ -198,41 +264,40 @@ local text = towstring(text)
 		end
 	end
 	
-		if text:find(L"SoR_F") then
+		--Check for Fort stream		
+		if text:find(L"SoR_F") and RoR_SoR.Settings.ShowForts == true  then
 		local SoR_FORT_SPLIT_TEXT_STREAM = StringSplit(tostring(text), ":")
---			if SoR_KEEP_SPLIT_TEXT_STREAM[1] == "SoR_T4_Keep" or SoR_KEEP_SPLIT_TEXT_STREAM[1] == "SoR_T3_Keep" then
 			if RoR_SoR.DebugKeep == true then
 				for i=1,#SoR_FORT_SPLIT_TEXT_STREAM do
 					d(towstring(SoR_FORT_SPLIT_TEXT_STREAM[i]))
 				end	
 			end
 			RoR_SoR.SET_FORT(SoR_FORT_SPLIT_TEXT_STREAM)
-
 		end
-	
 end
 
 function RoR_SoR.SET_FORT(Input)
+--SoR_F:10:2:85:BO One:1:BO Two:2:BO Three:1:BO Four:2:BO Five:2:100
 	local SoR_FORT_SPLIT_TEXT_STREAM = Input
 	local Window_Name = tostring(SoR_FORT_SPLIT_TEXT_STREAM[2])
 	local F_Stage = tonumber(SoR_FORT_SPLIT_TEXT_STREAM[3])
 	
 	if DoesWindowExist("SoR_"..Window_Name) then
-	LabelSetText("SoR_"..Window_Name.."BannerLabel",towstring(GetZoneName(tonumber(Window_Name))))	
-	local BannerW,_ = LabelGetTextDimensions("SoR_"..Window_Name.."BannerLabel")
+	LabelSetText("SoR_"..Window_Name.."_BannerLabel",towstring(GetZoneName(tonumber(Window_Name))))	
+	LabelSetTextColor("SoR_"..Window_Name.."_BannerLabel",255,225,100)
+	local BannerW,_ = LabelGetTextDimensions("SoR_"..Window_Name.."_BannerLabel")
 	WindowSetDimensions( "SoR_"..Window_Name.."BannerMid", BannerW, 40 )			
 	DynamicImageSetTexture( "SoR_"..Window_Name.."KEEP1KEEPICON", RoR_SoR.GetKeepTexture(RoR_SoR.Forts[tonumber(Window_Name)],1),42,42 )	
+	DynamicImageSetTexture( "SoR_"..Window_Name.."Background2BG", "Fort_"..Window_Name,0,0 )		
+		
 	
 		if F_Stage == 1 then
-	--	if SoR_KEEP_SPLIT_TEXT_STREAM[1] ~= "SoR_T2_Keep" then	
 			local F_Timer = tonumber(SoR_FORT_SPLIT_TEXT_STREAM[4])
 			WindowSetShowing( "SoR_"..Window_Name.."_TIMER",true)	
 			WindowSetShowing( "SoR_"..Window_Name.."_HEALTH",false)	
 			WindowSetShowing( "SoR_"..Window_Name.."KEEP1LORD_ICON",false)	
 			WindowSetShowing( "SoR_"..Window_Name.."KEEP1KEEPDOOR1",true)				
-			
-			
-			
+						
 			RoR_SoR.Timers[Window_Name][1] = F_Timer	
 			for i=1,5 do				
 				WindowSetShowing( "SoR_"..Window_Name.."BO"..i.."FlagBG",false)	
@@ -240,11 +305,13 @@ function RoR_SoR.SET_FORT(Input)
 			end
 			
 		elseif 	F_Stage == 2 then
-			WindowSetShowing( "SoR_"..Window_Name.."_TIMER",false)	
+			local F_Timer = tonumber(SoR_FORT_SPLIT_TEXT_STREAM[15])		
+			WindowSetShowing( "SoR_"..Window_Name.."_TIMER",true)	
 			WindowSetShowing( "SoR_"..Window_Name.."_HEALTH",true)	
 			WindowSetShowing( "SoR_"..Window_Name.."KEEP1LORD_ICON",false)	
 			WindowSetShowing( "SoR_"..Window_Name.."KEEP1KEEPDOOR1",true)					
 			LabelSetText("SoR_"..Window_Name.."_HEALTH",towstring(SoR_FORT_SPLIT_TEXT_STREAM[4])..L"%")
+			RoR_SoR.Timers[Window_Name][1] = F_Timer			
 			for i=1,5 do			
 				WindowSetShowing( "SoR_"..Window_Name.."BO"..i.."FlagBG",true)	
 				WindowSetShowing( "SoR_"..Window_Name.."BO"..i.."Flag",true)
@@ -292,7 +359,6 @@ function  RoR_SoR.Restack()
 		RoR_SoR.StackSort = {};
 		for k,v in pairs(RoR_SoR.OpenZones) do
 		WindowSetScale("SoR_"..k,WindowGetScale("RoR_SoR_Main_Window"))		
-		    --table.insert(RoR_SoR.StackSort,{[v]=k})
 			table.insert(RoR_SoR.StackSort,{Zone=k,Tier=v})
 			table.sort(RoR_SoR.StackSort, CompareEntry)			
 		end
@@ -311,6 +377,13 @@ function  RoR_SoR.Restack()
 			--	WindowAddAnchor( "SoR_"..v.Zone , "top", "RoR_SoR_Main_Window", "bottom", 0,0-((((175*tonumber(k-1)))*RoR_Window_Scale)/(uiScale/ResolutionScale/Inteface_Scale)))
 			end
 		end
+		
+	if RoR_SoR.Settings.Enabled then
+		WindowSetTintColor("RoR_SoR_ButtonBtn",255,255,255)
+	else
+		WindowSetTintColor("RoR_SoR_ButtonBtn",125,125,125)
+	end	
+	
 return
 end
 
@@ -321,14 +394,11 @@ function RoR_SoR.SET_BO(Input)
 	if DoesWindowExist("SoR_"..Window_Name) then
 		RoR_SoR.Timers[SoR_BO_SPLIT_TEXT_STREAM[2]] = {}
 		WindowSetScale("SoR_"..Window_Name,WindowGetScale("RoR_SoR_Main_Window"))
+		DynamicImageSetTextureSlice("SoR_"..Window_Name.."BG", RoR_SoR.ParingPortrait[RoR_SoR.GetParing(Window_Name)])
 		RoR_SoR.ZoneTimer[Window_Name] = ZoneLockTimer
 		RoR_SoR.BO_IDs[Window_Name] = {}
-		
-		--local ZoneVPs = tonumber(SoR_BO_SPLIT_TEXT_STREAM[19])
-		--LabelSetText("SoR_"..Window_Name.."VPPERCENT_ORDER",towstring(ZoneVPs)..L"%")
-		--LabelSetText("SoR_"..Window_Name.."VPPERCENT_DESTRO",towstring(100-ZoneVPs)..L"%")
---RoR_SoR.sortlist(RoR_SoR.StackSort,RoR_SoR.StackSort2)
-		
+
+
 		RoR_SoR.Restack()
 		
 		local Lock_Counter = 0	
@@ -415,11 +485,9 @@ local AAO = StringSplit(tostring(TEXT_STREAM[21]), ",")
 --Update the "progressbars" in the zone pairings
 local Width_Zone1_Order = ( ( ZoneVP.controlPoints[1] / 100 ) * 147 )
 WindowSetDimensions( "SoR_"..Window_Name.."VPORDER", Width_Zone1_Order+2, 4 )
---if ZoneVP.controlPoints[1] > 0 then WindowSetShowing("RoR_SoR_T1WindowRealm1VP_ORDER",true) else WindowSetShowing("RoR_SoR_T1WindowRealm1VP_ORDER",false) end
 
 local Width_Zone1_Destro = ( ( ZoneVP.controlPoints[2] / 100 ) * 147 )
 WindowSetDimensions( "SoR_"..Window_Name.."VPDESTRO", Width_Zone1_Destro+2, 4 )
---if Zone1.controlPoints[2] > 0 then WindowSetShowing("RoR_SoR_T1WindowRealm1VP_DESTRO",true) else WindowSetShowing("RoR_SoR_T1WindowRealm1VP_DESTRO",false) end
 	
 		LabelSetText("SoR_"..Window_Name.."VPPERCENT_ORDER",towstring((ZoneVP.controlPoints[1])*2)..L"%")
 		LabelSetText("SoR_"..Window_Name.."VPPERCENT_DESTRO",towstring((ZoneVP.controlPoints[2])*2)..L"%")
@@ -431,7 +499,6 @@ function RoR_SoR.SET_KEEP(Input)
 	local SoR_KEEP_SPLIT_TEXT_STREAM = Input
 	local Window_Name = tostring(SoR_KEEP_SPLIT_TEXT_STREAM[2])
 	if DoesWindowExist("SoR_"..Window_Name) then	
-	--	if SoR_KEEP_SPLIT_TEXT_STREAM[1] ~= "SoR_T2_Keep" then	
 			local KEEP1_ID = tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[3])
 			local KEEP2_ID = tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[12])	
 			local KEEP1_State = tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[6])
@@ -455,10 +522,12 @@ function RoR_SoR.SET_KEEP(Input)
 		
 			RoR_SoR.KEEP_IDs[Window_Name] = {[1]={ID=KEEP1_ID,Owner=KEEP1_Owner,Rank=KEEP1_Rank,State=KEEP1_State,Claim=KEEP1_CLAIM},[2]={ID=KEEP2_ID,Owner=KEEP2_Owner,Rank=KEEP2_Rank,State=KEEP2_State,Claim=KEEP2_CLAIM}}
 
+			RoR_SoR.KeepStatus[Window_Name] = {[1]=L"",[2]=L""}
 --Claim button and text		
 		local Claimed_Keep_1 = RoR_SoR.GetKeepClaim2(KEEP1_ID)
 		local Claimed_Keep_2 = RoR_SoR.GetKeepClaim2(KEEP2_ID)
 		
+
 		WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW1BUTTON",Claimed_Keep_1)
 		WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW2BUTTON",Claimed_Keep_2)		
 		WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW1TEXT",not Claimed_Keep_1)
@@ -559,15 +628,18 @@ local LabelText = L""
 			WindowStartAlphaAnimation( "SoR_"..Window_Name.."KEEP1KEEPDOOR2", Window.AnimationType.LOOP, 1.0, 0.1, 0.5, false, 0.0, 0 ) --start the Door2 pulse
 		end
 		LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",LabelText)
+		RoR_SoR.KeepStatus[Window_Name][1] = LabelText
 	elseif KEEP1_State == 3	then	--InnerDoor attacked
 		if KEEP1_Door1 > 0 then LabelText = towstring(KEEP1_Door1)..L"%" else LabelText = L"" end	
 		if RoR_SoR.KEEP_States[Window_Name][1] ~= 3 then
 			RoR_SoR.KEEP_States[Window_Name][1] = 3		
 			WindowStartAlphaAnimation( "SoR_"..Window_Name.."KEEP1KEEPDOOR1", Window.AnimationType.LOOP, 1.0, 0.1, 0.5, false, 0.0, 0 ) --start the Door1 pulse
 		end	
-		LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",LabelText)		
+		LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",LabelText)	
+		RoR_SoR.KeepStatus[Window_Name][1] = LabelText	
 	elseif KEEP1_State == 4 then	--Lord Attacked			
 	LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",towstring(KEEP1_Lord)..L"%")
+	RoR_SoR.KeepStatus[Window_Name][1] = towstring(KEEP1_Lord)..L"%"	
 		if RoR_SoR.KEEP_States[Window_Name][1] ~= 4 then
 			RoR_SoR.KEEP_States[Window_Name][1] = 4	
 			WindowStartAlphaAnimation( "SoR_"..Window_Name.."KEEP1LORD_ICON", Window.AnimationType.LOOP, 1.0, 0.2, 0.5, false, 0.0, 0 ) --start the Lord pulse			
@@ -577,7 +649,7 @@ local LabelText = L""
 		LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",L"Captured")
 	elseif KEEP1_State == 6	then	--Locked
 		RoR_SoR.KEEP_States[Window_Name][1] = 6
-		LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",L"Locked")	
+		LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",L"Locked")		
 	end					
 	--KEEP 2
 	if KEEP2_State == 1	then	--Safe
@@ -592,16 +664,19 @@ local LabelText = L""
 			RoR_SoR.KEEP_States[Window_Name][2] = 2		
 			WindowStartAlphaAnimation( "SoR_"..Window_Name.."KEEP2KEEPDOOR2", Window.AnimationType.LOOP, 1.0, 0.1, 0.5, false, 0.0, 0 ) --start the Door2 pulse
 		end
-		LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH",LabelText)	
+		LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH",LabelText)
+		RoR_SoR.KeepStatus[Window_Name][2] = LabelText	
 	elseif KEEP2_State == 3	then	--InnerDoor attacked
 		if KEEP2_Door1 > 0 then LabelText = towstring(KEEP2_Door1)..L"%" else LabelText = L"" end
 		if RoR_SoR.KEEP_States[Window_Name][2] ~= 3 then
 			RoR_SoR.KEEP_States[Window_Name][2] = 3		
 			WindowStartAlphaAnimation( "SoR_"..Window_Name.."KEEP2KEEPDOOR1", Window.AnimationType.LOOP, 1.0, 0.1, 0.5, false, 0.0, 0 ) --start the Door1 pulse
 		end	
-		LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH",LabelText)		
+		LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH",LabelText)	
+		RoR_SoR.KeepStatus[Window_Name][2] = LabelText			
 	elseif KEEP2_State == 4 then	--Lord Attacked			
 	LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH",towstring(KEEP2_Lord)..L"%")
+	RoR_SoR.KeepStatus[Window_Name][2] = towstring(KEEP2_Lord)..L"%"	
 		if RoR_SoR.KEEP_States[Window_Name][2] ~= 4 then
 			RoR_SoR.KEEP_States[Window_Name][2] = 4	
 			WindowStartAlphaAnimation( "SoR_"..Window_Name.."KEEP2LORD_ICON", Window.AnimationType.LOOP, 1.0, 0.2, 0.5, false, 0.0, 0 ) --start the Lord pulse			
@@ -658,9 +733,14 @@ end
 function RoR_SoR.OnMouseOverStart()
 	local WinParent = WindowGetParent(SystemData.MouseOverWindow.name)
 	local WindowName = tostring(SystemData.MouseOverWindow.name)
-
-	local Line1,Line2,Line3 = L"",L"",L""
+	local Line1,Line2,Line3,Line4,Line5 = L"",L"",L"",nil,L""
 	local Owner,State = nil,nil
+	local ClaimColor = RoR_SoR.RealmColors[1]
+	RoR_SoR.Lines = {}
+	
+	
+	if RoR_SoR.Forts[tonumber(string.match( WindowName,"SoR_(%d+)."))] ~= nil then return end
+	
 	
 if WindowName:match("SoR_+[^%.]+BO.") then
 	local BoId = string.match( WindowName,"SoR_(%d+)BO.")
@@ -669,7 +749,6 @@ if WindowName:match("SoR_+[^%.]+BO.") then
 	Owner = RoR_SoR.BO_IDs[tostring(BoId)][tonumber(Number)].Owner
 	State = RoR_SoR.BO_States[tostring(BoId)][tonumber(Number)]
 	
-
 Line1 = towstring(GetObjectiveName(tonumber(Final)))
 if (RoR_SoR.Timers[tostring(BoId)][tonumber(Number)] ~= nil) and (RoR_SoR.Timers[tostring(BoId)][tonumber(Number)] > 0) then Line2 = L"<icon29979>"..towstring(TimeUtils.FormatClock(RoR_SoR.Timers[tostring(BoId)][tonumber(Number)])) else Line2 = L"" end
 Line3 =RoR_SoR.GetTooltipIcon(Owner,State)
@@ -678,31 +757,69 @@ elseif WindowName:match("SoR_+[^%.]+KEEP.") then
 	local KeepId = string.match( WindowName,"SoR_(%d+)KEEP.")
 	local Number = string.match( WindowName,"KEEP(%d+)")
 	local KEEP_DATA = RoR_SoR.KEEP_IDs[tostring(KeepId)][tonumber(Number)]
-	
 	local Final = KEEP_DATA.ID
+	
 	Owner = KEEP_DATA.Owner
 	State = KEEP_DATA.State
 	
 Line1 = towstring(GetKeepName(tonumber(Final)))
 Line2 = RoR_SoR.GetKeepRank(KEEP_DATA.Rank)
-Line3 =RoR_SoR.GetKeepIcon(Owner,State)	
-d("Keep")
-end	
+Line3 =RoR_SoR.GetKeepIcon(Owner,State)
+if State ~= 1 then
+Line5 = towstring(RoR_SoR.GetKeepIcon2(Owner,State))..towstring(RoR_SoR.KeepStatus[tostring(KeepId)][tonumber(Number)])
+end
+
+	if KEEP_DATA.Claim ~= "0" then 
+			Line4 = L"<"..towstring(KEEP_DATA.Claim)..L">"
+			ClaimColor = RoR_SoR.RealmColors[Owner+1]
+		else 
+			Line4 = L"Unclaimed" 
+			ClaimColor = RoR_SoR.RealmColors[1]	
+		end
+	end	
 		Tooltips.CreateTextOnlyTooltip(SystemData.MouseOverWindow.name,nil)
 		Tooltips.SetTooltipText( 1, 1, Line1)
 		Tooltips.SetTooltipColorDef( 1, 1, Tooltips.MAP_DESC_TEXT_COLOR )
-	--	Tooltips.SetTooltipText( 2, 1, towstring(Line3))	
 			if Line2 ~= L""	then 
-				Tooltips.SetTooltipText( 2, 1,towstring(Line3))
-				Tooltips.SetTooltipText( 2, 3,towstring(Line2)) 				
+				Tooltips.SetTooltipText( 3, 1,towstring(Line3))
+				Tooltips.SetTooltipText( 3, 3,towstring(Line2)) 				
 			else 
-				Tooltips.SetTooltipText( 2, 1,towstring(Line3)) 
-			end			
-		Tooltips.SetTooltipColorDef( 2, 1, RoR_SoR.RealmColors[Owner+1] )
+				Tooltips.SetTooltipText( 3, 1,towstring(Line3)) 
+			end	
+		if Line4 ~= nil then
+			Tooltips.SetTooltipText( 2, 2,Line4)			
+			Tooltips.SetTooltipColorDef( 2, 2, ClaimColor)
+		end
+		Tooltips.SetTooltipColorDef( 3, 1, RoR_SoR.RealmColors[Owner+1] )
+		
+		if Line5 ~= L"" then
+			Tooltips.SetTooltipText( 4, 1,towstring(Line5))			
+			Tooltips.SetTooltipColorDef( 4, 1, Tooltips.COLOR_BODY)
+		end		
+		
 		Tooltips.Finalize()    
 		Tooltips.AnchorTooltip( Tooltips.ANCHOR_WINDOW_TOP )
-	
+		
+		RoR_SoR.Lines[1] = Line1
+		RoR_SoR.Lines[2] = Line2
+		RoR_SoR.Lines[3] = Line3
+		RoR_SoR.Lines[4] = Line4
+		RoR_SoR.Lines[5] = Line5
+		
+		
 end
+
+function RoR_SoR.MainTooltip()
+		Tooltips.CreateTextOnlyTooltip(SystemData.MouseOverWindow.name,nil)
+		Tooltips.SetTooltipText( 1, 1, L"State Of Realm")
+		Tooltips.SetTooltipColorDef( 1, 1, Tooltips.MAP_DESC_TEXT_COLOR )
+		Tooltips.SetTooltipText( 1, 3, towstring(version))	
+		Tooltips.SetTooltipText( 3, 1, L"LMB: Toggle Show/Hide<br>RMB: RoR Menu")
+		Tooltips.Finalize()    
+		Tooltips.AnchorTooltip( Tooltips.ANCHOR_WINDOW_TOP )
+	return	
+end
+
 
 function RoR_SoR.TIMER_UPDATE(elapsedTime)
 if RoR_SoR.Timers ~= nil then
@@ -724,12 +841,18 @@ if RoR_SoR.Timers ~= nil then
 							end
 						end	
 					else
-						LabelSetText("SoR_"..k.."_TIMER",towstring(towstring(TimeUtils.FormatClock(RoR_SoR.Timers[tostring(k)][a]))))
+						LabelSetText("SoR_"..k.."_TIMER",towstring(towstring(TimeUtils.FormatClock(RoR_SoR.Timers[tostring(k)][a])))..L"<icon29979>")
 					end
 				end
 			end
 		end		
 	WindowSetAlpha("SoR_"..k.."Background2",WindowGetAlpha("RoR_SoR_Main_Window"))
+	WindowSetShowing("SoR_"..k.."Background2",RoR_SoR.Settings.DrawBackground)
+	WindowSetShowing("SoR_"..k.."Banner",RoR_SoR.Settings.DrawBanner)	
+		if DoesWindowExist("SoR_"..k.."BG") then
+			WindowSetAlpha("SoR_"..k.."BG",0.25*(WindowGetAlpha("RoR_SoR_Main_Window")))
+			WindowSetShowing("SoR_"..k.."BG",RoR_SoR.Settings.DrawBackground)		
+		end	
 	end
 	
 	
@@ -763,6 +886,7 @@ if RoR_SoR.Timers ~= nil then
         end
     end
 	
+	
 end	
 
 if RoR_SoR.ZoneTimer ~= nil then
@@ -773,7 +897,6 @@ if RoR_SoR.ZoneTimer ~= nil then
 			else
 			RoR_SoR.RemoveWindow(k)			
 			end
-			--d(L"Key: "..towstring(k)..L" , Value: "..towstring(v))
 		end
 	end
 end
@@ -783,7 +906,6 @@ if RoR_Window_Scale ~= WindowGetScale("RoR_SoR_Main_Window") then
 RoR_SoR.OnSizeUpdated()
 RoR_Window_Scale = WindowGetScale("RoR_SoR_Main_Window")
 end
-
 end
 
 function RoR_SoR.OnSizeUpdated()
@@ -812,16 +934,23 @@ function RoR_SoR.ClearTier(Number)
 local Number = Number
 if RoR_SoR.StackSort == nil then return end
 		for k,v in ipairs(RoR_SoR.StackSort) do
-			if Number == 1 then
+			if Number == 0 then				
+				RoR_SoR.RemoveWindow(v.Zone)
+			elseif Number == 1 then
 				if v.Tier == 1 then
 				RoR_SoR.RemoveWindow(v.Zone)
 				end
-			else
-				if v.Tier ~= 1 then
+			elseif Number == 2 then
+				if (v.Tier == 2) or (v.Tier == 3) or (v.Tier == 4) then
 				RoR_SoR.RemoveWindow(v.Zone)
 				end
+			elseif Number == 3 then
+				if (v.Tier == 5) then
+				RoR_SoR.RemoveWindow(v.Zone)
+				end				
 			end
 		end
+return
 end
 
 function RoR_SoR.GetFlag(BO_OWNER,BO_STATE)
@@ -1006,6 +1135,41 @@ else
 end
 end
 
+function RoR_SoR.GetKeepIcon2(KEEP_OWNER,KEEP_STATE)
+local Owner = tonumber(KEEP_OWNER)
+local State = tonumber(KEEP_STATE)
+
+if State == 1 then
+	if Owner == 0 then return L"" end
+	if Owner == 1 then return L"" end
+	if Owner == 2 then return L"" end
+elseif State == 2 then
+	if Owner == 0 then return L"<icon29980> Outer Door: " end
+	if Owner == 1 then return L"<icon29980> Outer Door: " end
+	if Owner == 2 then return L"<icon29980> Outer Door: " end
+elseif State == 3 then
+	if Owner == 0 then return L"<icon29980> Inner Door: " end
+	if Owner == 1 then return L"<icon29980> Inner Door: " end
+	if Owner == 2 then return L"<icon29980> Inner Door: " end
+elseif State == 4 then
+	if Owner == 0 then return L"<icon29981> Lord: " end
+	if Owner == 1 then return L"<icon29981> Lord: " end
+	if Owner == 2 then return L"<icon29981> Lord: " end
+elseif State == 5 then
+	if Owner == 0 then return L"5,0" end
+	if Owner == 1 then return L"Captured, Order Controlled" end
+	if Owner == 2 then return L"Captured, Destro Controlled" end
+elseif State == 6 then
+	if Owner == 0 then return towstring(RoR_SoR.TextLock) end
+	if Owner == 1 then return towstring(RoR_SoR.TextLock) end
+	if Owner == 2 then return towstring(RoR_SoR.TextLock) end
+else
+	if Owner == 0 then return L"7,0" end
+	if Owner == 1 then return L"7,1" end
+	if Owner == 2 then return L"7,2" end
+end
+end
+
 
 function RoR_SoR.GetKeepRank(KeepRank)
 local Rank = tonumber(KeepRank)
@@ -1020,15 +1184,99 @@ else return L""
 end
 end
 
+function RoR_SoR.AnswerDialog(LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,SelectedChannel,Type)
+local TypeName = {"/say ","/party ","/warband ","/2 ","/t4 "}
+
+	if Type == 1 then
+			SendChatText(towstring(TypeName[SelectedChannel])..towstring(LineWord1)..L": "..towstring(LineWord3)..L" � "..towstring(LineWord2)..L" � "..towstring(LineWord4)..L" � "..towstring(LineWord5), L"")				
+	elseif Type == 2 then
+			SendChatText(towstring(TypeName[SelectedChannel])..L"Declaring Attack on: "..towstring(LineWord1), L"")	
+	elseif Type == 3 then
+			SendChatText(towstring(TypeName[SelectedChannel])..L"Declaring Defence on: "..towstring(LineWord1), L"")
+	elseif Type == 4 then
+			SendChatText(towstring(TypeName[SelectedChannel])..L"Relocate to: "..towstring(LineWord1), L"")
+	end
+end				
+
 
 function RoR_SoR.Toggle()
-WindowSetShowing("RoR_SoR_Main_Window",not WindowGetShowing("RoR_SoR_Main_Window"))
-WindowSetShowing("RoR_SoR_Popper",WindowGetShowing("RoR_SoR_Main_Window"))
-	for k,v in pairs(RoR_SoR.Timers) do
-	WindowSetShowing("SoR_"..k,WindowGetShowing("RoR_SoR_Main_Window"))	
-	end
+
+RoR_SoR.Settings.Enabled = not RoR_SoR.Settings.Enabled
+
+	RoR_SoR.SetWindowShow()
 RoR_SoR.Enable()	
 end
+
+function RoR_SoR.SetWindowShow()
+	WindowSetShowing("RoR_SoR_Main_Window",RoR_SoR.Settings.Enabled)
+	WindowSetShowing("RoR_SoR_Popper",RoR_SoR.Settings.Enabled)
+	for k,v in pairs(RoR_SoR.Timers) do
+		WindowSetShowing("SoR_"..k,RoR_SoR.Settings.Enabled)	
+	end
+return
+end
+
+function RoR_SoR.OnCombat()
+	if RoR_SoR.Settings.HideCombat == true then
+		if GameData.Player.inCombat == true then
+			WindowSetShowing("RoR_SoR_ButtonCombat",true)		
+			WindowSetShowing("RoR_SoR_Main_Window",false)
+			WindowSetShowing("RoR_SoR_Popper",false)
+			for k,v in pairs(RoR_SoR.Timers) do
+			WindowSetShowing("SoR_"..k,false)	
+			end		
+		else
+		WindowSetShowing("RoR_SoR_ButtonCombat",false)
+		RoR_SoR.SetWindowShow()
+		end
+	else
+	RoR_SoR.SetWindowShow()
+	end
+end
+
+function RoR_SoR.BroadCastOption()
+local LineWord1 = towstring(RoR_SoR.Lines[1])
+local LineWord2 = towstring(RoR_SoR.Lines[2])
+local LineWord3 = towstring(RoR_SoR.Lines[3])
+local LineWord4 = towstring(RoR_SoR.Lines[4])
+local LineWord5 = towstring(RoR_SoR.Lines[5])
+
+local function MakeCallBack( SelectedOption1,SelectedOption2 )
+		    return function() RoR_SoR.AnswerDialog(SelectedOption1,SelectedOption2) end
+		end
+		
+local function MakeCallBack2( LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,SelectedType )
+		    return function() RoR_SoR.ContextMenu1(LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,SelectedType ) end
+		end		
+		
+    EA_Window_ContextMenu.CreateContextMenu( "BroadCast Selection", EA_Window_ContextMenu.CONTEXT_MENU_1, LineWord1 )
+    EA_Window_ContextMenu.AddMenuDivider( EA_Window_ContextMenu.CONTEXT_MENU_1 )	
+	EA_Window_ContextMenu.AddCascadingMenuItem( L"<icon29962>BroadCast Status", MakeCallBack2(LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,1 ), false, 1 )
+	EA_Window_ContextMenu.AddCascadingMenuItem( L"<icon29960>Declare Attack", MakeCallBack2(LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,2 ), false, 1 )	
+	EA_Window_ContextMenu.AddCascadingMenuItem( L"<icon29961>Declare Defence", MakeCallBack2(LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,3 ), false, 1 )
+	EA_Window_ContextMenu.AddCascadingMenuItem( L"<icon29963>Relocating", MakeCallBack2(LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,4 ), false, 1 )		
+    EA_Window_ContextMenu.Finalize()
+
+end
+
+function RoR_SoR.ContextMenu1(LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,SelectedType)
+local function MakeCallBack( LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,SelectedChannel,Type)
+		    return function() RoR_SoR.AnswerDialog(LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,SelectedChannel,Type) end
+		end
+local TypeName = {"<icon29962>BroadCast Status","<icon29960>Declare Attack","<icon29961>Declare Defence","<icon29963>Relocate"}
+		
+    EA_Window_ContextMenu.CreateContextMenu( tostring(TypeName[SelectedType]), EA_Window_ContextMenu.CONTEXT_MENU_2,towstring(TypeName[SelectedType]) )
+    EA_Window_ContextMenu.AddMenuDivider( EA_Window_ContextMenu.CONTEXT_MENU_2 )	
+	EA_Window_ContextMenu.AddMenuItem( L"/Say", MakeCallBack(LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,1,SelectedType ), false, true, EA_Window_ContextMenu.CONTEXT_MENU_2 )
+	EA_Window_ContextMenu.AddMenuItem( L"/Party", MakeCallBack(LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,2,SelectedType ), (not PartyUtils.IsPartyActive()), true, EA_Window_ContextMenu.CONTEXT_MENU_2 )
+	EA_Window_ContextMenu.AddMenuItem( L"/Warband", MakeCallBack(LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,3,SelectedType ), (not IsWarBandActive()), true, EA_Window_ContextMenu.CONTEXT_MENU_2 )	
+	EA_Window_ContextMenu.AddMenuItem( L"/Region", MakeCallBack(LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,4,SelectedType ), (not GameData.Player.rvrZoneFlagged), true, EA_Window_ContextMenu.CONTEXT_MENU_2 )	
+	EA_Window_ContextMenu.AddMenuItem( L"/RvR", MakeCallBack(LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,5,SelectedType ), false, true, EA_Window_ContextMenu.CONTEXT_MENU_2 )	 
+	EA_Window_ContextMenu.Finalize(2, nil)
+
+end
+
+
 
 function RoR_SoR.OnTabRBU()
 local function MakeCallBack( SelectedOption )
@@ -1049,11 +1297,42 @@ local function MakeCallBack( SelectedOption )
    EA_Window_ContextMenu.AddMenuItem( L"<icon00058> Tier 4" ,MakeCallBack(2), false, true )
  end
  
+   if RoR_SoR.Settings.ShowForts == true then
+  EA_Window_ContextMenu.AddMenuItem( L"<icon00057> Forts" , MakeCallBack(6), false, true )
+  else
+   EA_Window_ContextMenu.AddMenuItem( L"<icon00058> Forts" ,MakeCallBack(6), false, true )
+ end
+ 
+    if RoR_SoR.Settings.OnlyActive == true then
+  EA_Window_ContextMenu.AddMenuItem( L"<icon00057> Only Your Zone" , MakeCallBack(9), false, true )
+  else
+   EA_Window_ContextMenu.AddMenuItem(L"<icon00058> Only Your Zone" ,MakeCallBack(9), false, true )
+   end
+ 
+ 
  	if RoR_SoR.Settings.StackDir == 1 then
 	  EA_Window_ContextMenu.AddMenuItem( L"Set Stack up" , MakeCallBack(3), false, true )
   else
    EA_Window_ContextMenu.AddMenuItem( L"Set Stack down" ,MakeCallBack(4), false, true )
  end
+   if RoR_SoR.Settings.HideCombat == true then
+  EA_Window_ContextMenu.AddMenuItem( L"<icon00057> Hide In Combat" , MakeCallBack(5), false, true )
+  else
+   EA_Window_ContextMenu.AddMenuItem(L"<icon00058> Hide In Combat" ,MakeCallBack(5), false, true )
+   end
+   
+  if RoR_SoR.Settings.DrawBackground == true then
+  EA_Window_ContextMenu.AddMenuItem( L"<icon00057> Show Background" , MakeCallBack(7), false, true )
+  else
+   EA_Window_ContextMenu.AddMenuItem(L"<icon00058> Show Background" ,MakeCallBack(7), false, true )
+   end
+ 
+   if RoR_SoR.Settings.DrawBanner == true then
+  EA_Window_ContextMenu.AddMenuItem( L"<icon00057> Show Banners" , MakeCallBack(8), false, true )
+  else
+   EA_Window_ContextMenu.AddMenuItem(L"<icon00058> Show Banners" ,MakeCallBack(8), false, true )
+   end
+
  EA_Window_ContextMenu.AddMenuItem( GetString( StringTables.Default.LABEL_SET_OPACITY ), EA_Window_ContextMenu.OnWindowOptionsSetAlpha, false, true )
  EA_Window_ContextMenu.Finalize()	
 end
@@ -1063,10 +1342,13 @@ function RoR_SoR.ToggleShow(SelectedOption)
 	elseif SelectedOption == 2 then RoR_SoR.Settings.ShowT4 = not RoR_SoR.Settings.ShowT4  ; RoR_SoR.ClearTier(2)
 	elseif SelectedOption == 3 then RoR_SoR.Settings.StackDir = 2
 	elseif SelectedOption == 4 then RoR_SoR.Settings.StackDir = 1
+	elseif SelectedOption == 5 then RoR_SoR.Settings.HideCombat = not RoR_SoR.Settings.HideCombat ; RoR_SoR.OnCombat()
+	elseif SelectedOption == 6 then RoR_SoR.Settings.ShowForts = not RoR_SoR.Settings.ShowForts	; RoR_SoR.ClearTier(3)
+	elseif SelectedOption == 7 then RoR_SoR.Settings.DrawBackground	 = not RoR_SoR.Settings.DrawBackground	
+	elseif SelectedOption == 8 then RoR_SoR.Settings.DrawBanner	 = not RoR_SoR.Settings.DrawBanner	
+	elseif SelectedOption == 9 then RoR_SoR.Settings.OnlyActive	 = not RoR_SoR.Settings.OnlyActive ; RoR_SoR.ClearTier(0)
 	end
 	RoR_SoR.Enable()
-	RoR_SoR.Restack()
-	
 	return
 end
 
