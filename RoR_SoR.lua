@@ -1,13 +1,13 @@
 if not RoR_SoR then RoR_SoR= {} end
-local version = "115"
-local ZoneLockTimer = 10
+local version = "116"
+local ZoneLockTimer = 6
 local RoR_Window_Scale
 
 local c_DEFAULT_HIDE_TIMER = 1.0
 local c_DEFAULT_FADEIN_TIMER = 0.3
 local c_DEFAULT_FADEOUT_TIMER = 0.3
 
-local Popper = {m_HideCountdown = c_DEFAULT_HIDE_TIMER, m_IsShowing = false,}
+Popper = {m_HideCountdown = c_DEFAULT_HIDE_TIMER, m_IsShowing = false,}
 
 if not RoR_SoR.Settings then RoR_SoR.Settings ={
 ShowT1 = true,
@@ -16,6 +16,7 @@ StackDir = 2,
 Offset = 15,
 Enabled = true,
 HideCombat = false,
+HideScenario = false,
 ShowForts = true,
 DrawBackground = true,
 DrawBanner = true,
@@ -26,7 +27,7 @@ OnlyActive = false,
 RoR_SoR.DebugKeep = false
 RoR_SoR.DebugBO = false
 --(wstring.match(wstring.gsub(wstring.gsub(wstring.gsub(L"Dont Feel Nuthing",L" of ", L"O"), L"%s",L""), L"%l*", L""), L"([^^]+)^?.*"))  --This is for Shortening Guildnames
-RoR_SoR.RealmColors = {{r=155,g=155,b=155},{r=107,g=191,b=255},{r=255,g=105,b=105}}
+RoR_SoR.RealmColors = {{r=155,g=155,b=155},{r=107,g=191,b=255},{r=255,g=105,b=105},{r=75,g=75,b=255},{r=255,g=25,b=25}}
 RoR_SoR.CappingRealmColors = {{r=255,g=255,b=255},{r=255,g=105,b=105},{r=107,g=191,b=255}}
 RoR_SoR.T4_ActiveZones = {[3]=1,[5]=2,[9]=3,[103]=1,[105]=2,[109]=3,[209]=3,[205]=2,[203]=1}
 RoR_SoR.Forts = {[4]=2,[10]=1,[104]=2,[110]=1,[204]=2,[210]=1}
@@ -35,6 +36,7 @@ RoR_SoR.ZoneNames = {[1]={1,7},[2]={2,8},[3]={3,3},[4]={4,4},[5]={5,5},[6]={6,11
 RoR_SoR.TierNames = {[1]={006,011,100,106,200,206},[2]={001,007,101,107,201,207},[3]={002,008,102,108,202,208},[4]={003,005,009,103,105,109,209,205,203}}
 RoR_SoR.ParingPortrait = {[1] = "PairingElvesSelected",[2] = "PairingEvCSelected",[3]="PairingGvDSelected"}
 RoR_SoR.KeepStatus = {}
+RoR_SoR.ZoneStatus = {}
 
 RoR_SoR.TextLock = towstring(GetStringFromTable("MapSystem", StringTables.MapSystem.TEXT_CAMPAIGN_PAIRING_LOCKED ) )
 RoR_SoR.TextZoneLocked =	towstring(GetStringFromTable("Hardcoded", 1268))
@@ -62,7 +64,7 @@ RoR_SoR.Debug_T2_KEEP_Texts = {[1]=L"StreamName: ",[2]=L"ZoneID: ",[3]=L"KEEP1_I
 
 RoR_SoR.Debug_T3_KEEP_Texts = {[1]=L"StreamName: ",[2]=L"ZoneID: ",[3]=L"KEEP1_ID: ",[4]=L"KEEP1_OWNER: ",[5]=L"KEEP1_RANK: ",[6]=L"KEEP1_STATUS: ",[7]=L"KEEP1_MESSAGE: ",
 						[8]=L"KEEP_1_OUTER: ",[9]=L"KEEP_1_INNER: ",[10]=L"KEEP_1_LORD: ",[11]=L"KEEP_1_CLAIMED: ",[12]=L"KEEP2_ID: ",[13]=L"KEEP2_OWNER: ",[14]=L"KEEP2_RANK: ",[15]=L"KEEP2_STATUS: ",
-						[16]=L"KEEP2_MESSAGE: ",[17]=L"KEEP_2_OUTER_DOOR: ",[18]=L"KEEP_2_INNER_DOOR: ",[19]=L"KEEP_2_LORD: ",[20]=L"KEEP_2_CLAIMED: ",[21]=L"ACTIVE_ZONE: ",[22]=L"AAO: "}						
+						[16]=L"KEEP2_MESSAGE: ",[17]=L"KEEP_2_OUTER_DOOR: ",[18]=L"KEEP_2_INNER_DOOR: ",[19]=L"KEEP_2_LORD: ",[20]=L"KEEP_2_CLAIMED: ",[21]=L"ACTIVE_ZONE: ",[22]=L"AAO: ",[23]=L"Order Pop: ",[24]=L"Destro Pop: "}						
 						
 RoR_SoR.Debug_KEEP_STATUS = {[1]=L"KEEPSTATUS_SAFE",[2]=L"KEEPSTATUS_OUTER_WALLS_UNDER_ATTACK",[3]=L"KEEPSTATUS_INNER_SANCTUM_UNDER_ATTACK",[4]=L"KEEPSTATUS_KEEP_LORD_UNDER_ATTACK",
 							[5]=L"KEEPSTATUS_SEIZED",[6]=L"KEEPSTATUS_LOCKED"}						
@@ -188,14 +190,9 @@ local text = towstring(text)
 		if text:match( L"SoR_+[^%.]+_BO:([^%.]+).") then	
 		local SoR_BO_SPLIT_TEXT_STREAM = StringSplit(tostring(text), ":")
 		if SoR_BO_SPLIT_TEXT_STREAM[15] == nil then return end -- check and exit if short string
-
 		--Create window if not exist
 			local Window_Name = tostring(SoR_BO_SPLIT_TEXT_STREAM[2])
-			if RoR_SoR.Settings.OnlyActive == true then  
-				if (GameData.Player.zone ~= 161 and GameData.Player.zone ~= 162) then
-					if not (RoR_SoR.ZoneNames[GameData.Player.zone][1] == tonumber(Window_Name) or RoR_SoR.ZoneNames[GameData.Player.zone][2] == tonumber(Window_Name))then return end
-				end
-			end
+
 			--Setup Tier 4 BO zone stuff
 			if (SoR_BO_SPLIT_TEXT_STREAM[1] == "SoR_T4_BO") and (RoR_SoR.Settings.ShowT4 == true) then			
 				local Fetch_Active_Zone = tonumber(SoR_BO_SPLIT_TEXT_STREAM[22])
@@ -206,6 +203,7 @@ local text = towstring(text)
 							local ZoneData = GetCampaignZoneData(tonumber(Window_Name))
 							RoR_SoR.OpenZones[Window_Name] =  tonumber(ZoneData.tierId)
 						LabelSetText("SoR_"..Window_Name.."_BannerLabel",towstring(GetZoneName(tonumber(Window_Name))))
+						LabelSetText("SoR_"..Window_Name.."_BannerLabel_BG",towstring(GetZoneName(tonumber(Window_Name))))						
 						LabelSetTextColor("SoR_"..Window_Name.."_BannerLabel",255,255,255)
 						local BannerW,_ = LabelGetTextDimensions("SoR_"..Window_Name.."_BannerLabel")
 						WindowSetDimensions( "SoR_"..Window_Name.."BannerMid", BannerW, 40 )											
@@ -218,6 +216,7 @@ local text = towstring(text)
 					local ZoneData = GetCampaignZoneData(tonumber(Window_Name))
 					RoR_SoR.OpenZones[Window_Name] =  tonumber(ZoneData.tierId)
 					LabelSetText("SoR_"..Window_Name.."_BannerLabel",towstring(GetZoneName(RoR_SoR.ZoneNames[tonumber(Window_Name)][1]))..L" � "..towstring(GetZoneName(RoR_SoR.ZoneNames[tonumber(Window_Name)][2])))	
+					LabelSetText("SoR_"..Window_Name.."_BannerLabel_BG",towstring(GetZoneName(RoR_SoR.ZoneNames[tonumber(Window_Name)][1]))..L" � "..towstring(GetZoneName(RoR_SoR.ZoneNames[tonumber(Window_Name)][2])))	
 					LabelSetTextColor("SoR_"..Window_Name.."_BannerLabel",255,255,255)
 					local BannerW,_ = LabelGetTextDimensions("SoR_"..Window_Name.."_BannerLabel")
 					WindowSetDimensions( "SoR_"..Window_Name.."BannerMid", BannerW, 40 )						
@@ -232,6 +231,7 @@ local text = towstring(text)
 					RoR_SoR.OpenZones[Window_Name] =  tonumber(ZoneData.tierId)
 					RoR_SoR.KEEP_States[Window_Name] = {}
 					LabelSetText("SoR_"..Window_Name.."_BannerLabel",towstring(GetZoneName(RoR_SoR.ZoneNames[tonumber(Window_Name)][1]))..L" � "..towstring(GetZoneName(RoR_SoR.ZoneNames[tonumber(Window_Name)][2])))	
+					LabelSetText("SoR_"..Window_Name.."_BannerLabel_BG",towstring(GetZoneName(RoR_SoR.ZoneNames[tonumber(Window_Name)][1]))..L" � "..towstring(GetZoneName(RoR_SoR.ZoneNames[tonumber(Window_Name)][2])))	
 					LabelSetTextColor("SoR_"..Window_Name.."_BannerLabel",255,255,255)
 					local BannerW,_ = LabelGetTextDimensions("SoR_"..Window_Name.."_BannerLabel")
 					WindowSetDimensions( "SoR_"..Window_Name.."BannerMid", BannerW, 40 )						
@@ -284,6 +284,11 @@ function RoR_SoR.SET_FORT(Input)
 	
 	if DoesWindowExist("SoR_"..Window_Name) then
 	LabelSetText("SoR_"..Window_Name.."_BannerLabel",towstring(GetZoneName(tonumber(Window_Name))))	
+	LabelSetText("SoR_"..Window_Name.."_BannerLabel_BG",towstring(GetZoneName(tonumber(Window_Name))))
+
+	LabelSetText("SoR_"..Window_Name.."_STAGE",L"Stage: "..towstring(F_Stage))		
+	LabelSetText("SoR_"..Window_Name.."_STAGE_BG",L"Stage: "..towstring(F_Stage))	
+	
 	LabelSetTextColor("SoR_"..Window_Name.."_BannerLabel",255,225,100)
 	local BannerW,_ = LabelGetTextDimensions("SoR_"..Window_Name.."_BannerLabel")
 	WindowSetDimensions( "SoR_"..Window_Name.."BannerMid", BannerW, 40 )			
@@ -357,6 +362,7 @@ function  RoR_SoR.Restack()
 		local ResolutionScale = InterfaceCore.GetResolutionScale()			
 		local Inteface_Scale = SystemData.Settings.Interface.globalUiScale
 		RoR_SoR.StackSort = {};
+		
 		for k,v in pairs(RoR_SoR.OpenZones) do
 		WindowSetScale("SoR_"..k,WindowGetScale("RoR_SoR_Main_Window"))		
 			table.insert(RoR_SoR.StackSort,{Zone=k,Tier=v})
@@ -377,7 +383,7 @@ function  RoR_SoR.Restack()
 			--	WindowAddAnchor( "SoR_"..v.Zone , "top", "RoR_SoR_Main_Window", "bottom", 0,0-((((175*tonumber(k-1)))*RoR_Window_Scale)/(uiScale/ResolutionScale/Inteface_Scale)))
 			end
 		end
-		
+	
 	if RoR_SoR.Settings.Enabled then
 		WindowSetTintColor("RoR_SoR_ButtonBtn",255,255,255)
 	else
@@ -427,6 +433,7 @@ function RoR_SoR.SET_BO(Input)
 			
 			LabelSetTextColor("SoR_"..Window_Name.."BO"..i.."TIMER",RealmColor.r,RealmColor.g,RealmColor.b)
 			LabelSetText("SoR_"..Window_Name.."BO"..i.."TIMER",L"")		
+			LabelSetText("SoR_"..Window_Name.."BO"..i.."TIMER_BG",L"")				
 			DynamicImageSetTexture( "SoR_"..Window_Name.."BO"..i.."Flag", RoR_SoR.GetFlag(BO_Owner,BO_State),31,31 )	
 			DynamicImageSetTexture( "SoR_"..Window_Name.."BO"..i.."FlagBG", RoR_SoR.GetFlag2(BO_Owner,BO_State),31,31 )				
 			RoR_SoR.BO_States[Window_Name][i] = BO_State
@@ -458,9 +465,12 @@ local AAO = StringSplit(tostring(TEXT_STREAM[21]), ",")
 			local ClaimColor = RoR_SoR.RealmColors[AAO[1]+1]
 			LabelSetTextColor("SoR_"..Window_Name.."AAO",ClaimColor.r,ClaimColor.g,ClaimColor.b)
 			LabelSetText("SoR_"..Window_Name.."AAO",towstring(AAO[2])..L"%")	
+			LabelSetText("SoR_"..Window_Name.."AAO_BG",towstring(AAO[2])..L"%")				
 			WindowSetShowing("SoR_"..Window_Name.."AAO",tonumber(AAO[2])>0) 
+			WindowSetShowing("SoR_"..Window_Name.."AAO_BG",tonumber(AAO[2])>0) 			
 			else
 			WindowSetShowing("SoR_"..Window_Name.."AAO",false) 
+			WindowSetShowing("SoR_"..Window_Name.."AAO_BG",false) 			
 			end
  end
 
@@ -469,6 +479,7 @@ local AAO = StringSplit(tostring(TEXT_STREAM[21]), ",")
 		WindowSetShowing("SoR_"..Window_Name.."KEEP2",false)	
 		WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW1",false)
 		WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW2",false)
+		WindowSetShowing("SoR_"..Window_Name.."POP",false)		
 		RoR_SoR.ZoneTimer[Window_Name] = ZoneLockTimer
 	local ZoneVP	
 		if Input == "106" then
@@ -490,7 +501,10 @@ local Width_Zone1_Destro = ( ( ZoneVP.controlPoints[2] / 100 ) * 147 )
 WindowSetDimensions( "SoR_"..Window_Name.."VPDESTRO", Width_Zone1_Destro+2, 4 )
 	
 		LabelSetText("SoR_"..Window_Name.."VPPERCENT_ORDER",towstring((ZoneVP.controlPoints[1])*2)..L"%")
+		LabelSetText("SoR_"..Window_Name.."VPPERCENT_ORDER_BG",towstring((ZoneVP.controlPoints[1])*2)..L"%")
+		
 		LabelSetText("SoR_"..Window_Name.."VPPERCENT_DESTRO",towstring((ZoneVP.controlPoints[2])*2)..L"%")
+		LabelSetText("SoR_"..Window_Name.."VPPERCENT_DESTRO_BG",towstring((ZoneVP.controlPoints[2])*2)..L"%")		
 
 	end
 end
@@ -505,8 +519,8 @@ function RoR_SoR.SET_KEEP(Input)
 			local KEEP1_Owner = tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[4])
 			local KEEP2_State = tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[15])
 			local KEEP2_Owner = tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[13])			
-			local KEEP1_Rank = tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[5])			
-			local KEEP2_Rank = tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[14])	
+			local KEEP1_RankA = (SoR_KEEP_SPLIT_TEXT_STREAM[5])			
+			local KEEP2_RankA = (SoR_KEEP_SPLIT_TEXT_STREAM[14])	
 			
 			local KEEP1_Door1 = tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[9])			
 			local KEEP1_Door2 = tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[8])			
@@ -520,9 +534,36 @@ function RoR_SoR.SET_KEEP(Input)
 			local KEEP1_CLAIM = SoR_KEEP_SPLIT_TEXT_STREAM[11]
 			local KEEP2_CLAIM = SoR_KEEP_SPLIT_TEXT_STREAM[20]
 		
-			RoR_SoR.KEEP_IDs[Window_Name] = {[1]={ID=KEEP1_ID,Owner=KEEP1_Owner,Rank=KEEP1_Rank,State=KEEP1_State,Claim=KEEP1_CLAIM},[2]={ID=KEEP2_ID,Owner=KEEP2_Owner,Rank=KEEP2_Rank,State=KEEP2_State,Claim=KEEP2_CLAIM}}
+			--for future-proofing progressbar
+			local KEEP1_Rank = StringSplit(tostring(KEEP1_RankA), ",")
+			local KEEP2_Rank = StringSplit(tostring(KEEP2_RankA), ",")
+			KEEP1_Rank[1] = tonumber(KEEP1_Rank[1])
+			KEEP2_Rank[1] = tonumber(KEEP2_Rank[1])
+		
+			if KEEP1_Rank[2] ~= nil then			
+				WindowSetShowing("SoR_"..Window_Name.."KEEP1PROGRESS",true) 			
+				WindowSetShowing("SoR_"..Window_Name.."KEEP1PROGRESSBAR",(tonumber(KEEP1_Rank[2]) > 6)) 
+				local BarWidth,BarHeight = WindowGetDimensions( "SoR_"..Window_Name.."KEEP1PROGRESS")
+				local TotalSize = BarWidth / 100
+				WindowSetDimensions( "SoR_"..Window_Name.."KEEP1PROGRESSBAR", math.abs(tonumber(KEEP1_Rank[2])*TotalSize), BarHeight )
+			else
+				WindowSetShowing("SoR_"..Window_Name.."KEEP1PROGRESS",false) 
+			end
+		
+			if KEEP2_Rank[2] ~= nil then
+				WindowSetShowing("SoR_"..Window_Name.."KEEP2PROGRESS",true) 				
+				WindowSetShowing("SoR_"..Window_Name.."KEEP2PROGRESSBAR",(tonumber(KEEP2_Rank[2]) > 6)) 
+				local BarWidth,BarHeight = WindowGetDimensions( "SoR_"..Window_Name.."KEEP2PROGRESS")
+				local TotalSize = BarWidth / 100
+				WindowSetDimensions( "SoR_"..Window_Name.."KEEP2PROGRESSBAR",math.abs(tonumber(KEEP2_Rank[2])*TotalSize), BarHeight )
+			else
+				WindowSetShowing("SoR_"..Window_Name.."KEEP2PROGRESS",false) 				
+			end
+		
+			RoR_SoR.KEEP_IDs[Window_Name] = {[1]={ID=KEEP1_ID,Owner=KEEP1_Owner,Rank=KEEP1_Rank[1],State=KEEP1_State,Claim=KEEP1_CLAIM},[2]={ID=KEEP2_ID,Owner=KEEP2_Owner,Rank=KEEP2_Rank[1],State=KEEP2_State,Claim=KEEP2_CLAIM}}
 
 			RoR_SoR.KeepStatus[Window_Name] = {[1]=L"",[2]=L""}
+			RoR_SoR.ZoneStatus[Window_Name]	= {}		
 --Claim button and text		
 		local Claimed_Keep_1 = RoR_SoR.GetKeepClaim2(KEEP1_ID)
 		local Claimed_Keep_2 = RoR_SoR.GetKeepClaim2(KEEP2_ID)
@@ -533,31 +574,43 @@ function RoR_SoR.SET_KEEP(Input)
 		WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW1TEXT",not Claimed_Keep_1)
 		WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW2TEXT",not Claimed_Keep_2)		
 		
-		ButtonSetText("SoR_"..Window_Name.."CLAIM_WINDOW1BUTTON",L"CLAIM KEEP")
-		ButtonSetText("SoR_"..Window_Name.."CLAIM_WINDOW2BUTTON",L"CLAIM KEEP")		
+		ButtonSetText("SoR_"..Window_Name.."CLAIM_WINDOW1BUTTON",L"[CLAIM KEEP]")
+		ButtonSetText("SoR_"..Window_Name.."CLAIM_WINDOW2BUTTON",L"[CLAIM KEEP]")		
 			
---Calculate and show AAO		
-			local AAO = StringSplit(tostring(SoR_KEEP_SPLIT_TEXT_STREAM[21]), ",")
+--Calculate and show AAO and Population	
+
+				RoR_SoR.ZoneStatus[Window_Name].Order_Pop = SoR_KEEP_SPLIT_TEXT_STREAM[22] or 0	
+				RoR_SoR.ZoneStatus[Window_Name].Destro_Pop = SoR_KEEP_SPLIT_TEXT_STREAM[23] or 0
+			
+			RoR_SoR.ZoneStatus[Window_Name].AAO = StringSplit(tostring(SoR_KEEP_SPLIT_TEXT_STREAM[21]), ",")
 
 			for k,v in pairs(RoR_SoR.TierNames[4]) do
 				if tostring(v) == tostring(Window_Name) then
-					AAO = StringSplit(tostring(SoR_KEEP_SPLIT_TEXT_STREAM[22]), ",")
+					RoR_SoR.ZoneStatus[Window_Name].AAO = StringSplit(tostring(SoR_KEEP_SPLIT_TEXT_STREAM[22]), ",")
+					
+					RoR_SoR.ZoneStatus[Window_Name].Order_Pop = SoR_KEEP_SPLIT_TEXT_STREAM[23] or 0	
+					RoR_SoR.ZoneStatus[Window_Name].Destro_Pop = SoR_KEEP_SPLIT_TEXT_STREAM[24] or 0
+					
+					
 					break
 				end
 			end
 			
-			if AAO[2] ~= nil then
-			local ClaimColor = RoR_SoR.RealmColors[AAO[1]+1]
+			if RoR_SoR.ZoneStatus[Window_Name].AAO[2] ~= nil then
+			local ClaimColor = RoR_SoR.RealmColors[RoR_SoR.ZoneStatus[Window_Name].AAO[1]+1]
 			LabelSetTextColor("SoR_"..Window_Name.."AAO",ClaimColor.r,ClaimColor.g,ClaimColor.b)
-			LabelSetText("SoR_"..Window_Name.."AAO",towstring(AAO[2])..L"%")	
-			WindowSetShowing("SoR_"..Window_Name.."AAO",tonumber(AAO[2])>0) -- Hide T1 Stuff
+			LabelSetText("SoR_"..Window_Name.."AAO",towstring(RoR_SoR.ZoneStatus[Window_Name].AAO[2])..L"%")	
+			LabelSetText("SoR_"..Window_Name.."AAO_BG",towstring(RoR_SoR.ZoneStatus[Window_Name].AAO[2])..L"%")							
+			WindowSetShowing("SoR_"..Window_Name.."AAO",tonumber(RoR_SoR.ZoneStatus[Window_Name].AAO[2])>0) -- Hide T1 Stuff
+			WindowSetShowing("SoR_"..Window_Name.."AAO_BG",tonumber(RoR_SoR.ZoneStatus[Window_Name].AAO[2])>0) -- Hide T1 Stuff			
 			else
 			WindowSetShowing("SoR_"..Window_Name.."AAO",false) -- Hide T1 Stuff
+			WindowSetShowing("SoR_"..Window_Name.."AAO_BG",false) -- Hide T1 Stuff						
 			end
 			
 			WindowSetShowing("SoR_"..Window_Name.."VP",false) -- Hide T1 Stuff
-WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW1TEXTPROXY",false)
-WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW2TEXTPROXY",false)			
+			WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW1TEXTPROXY",false)
+			WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW2TEXTPROXY",false)			
 			DynamicImageSetTexture( "SoR_"..Window_Name.."KEEP1KEEPICON", RoR_SoR.GetKeepTexture(KEEP1_Owner,KEEP1_State),42,42 )	
 			DynamicImageSetTexture( "SoR_"..Window_Name.."KEEP2KEEPICON", RoR_SoR.GetKeepTexture(KEEP2_Owner,KEEP2_State),42,42 )
 
@@ -565,25 +618,31 @@ WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW2TEXTPROXY",false)
 			DynamicImageSetTexture( "SoR_"..Window_Name.."KEEP2LORD_ICON", RoR_SoR.KeepLord[KEEP2_Owner],22,22 )			
 --			DynamicImageSetTextureSlice( "SoR_"..Window_Name.."KEEP1LORD_ICON", RoR_SoR.KeepLord[KEEP1_Owner] )
 --			DynamicImageSetTextureSlice( "SoR_"..Window_Name.."KEEP2LORD_ICON", RoR_SoR.KeepLord[KEEP2_Owner] )			
-			
-
+	
+			LabelSetText("SoR_"..Window_Name.."POPOrder",towstring(RoR_SoR.ZoneStatus[Window_Name].Order_Pop))	
+			LabelSetText("SoR_"..Window_Name.."POPOrder_BG",towstring(RoR_SoR.ZoneStatus[Window_Name].Order_Pop))				
+			LabelSetText("SoR_"..Window_Name.."POPDestro",towstring(RoR_SoR.ZoneStatus[Window_Name].Destro_Pop))				
+			LabelSetText("SoR_"..Window_Name.."POPDestro_BG",towstring(RoR_SoR.ZoneStatus[Window_Name].Destro_Pop))			
 --Check if keeps are claimed and do the keep branding
 if KEEP1_CLAIM ~= "0" then
 local ClaimColor = RoR_SoR.RealmColors[KEEP1_Owner+1]
 LabelSetText("SoR_"..Window_Name.."CLAIM_WINDOW1TEXTPROXY",L"<"..towstring(KEEP1_CLAIM)..L">")
 local Width,Height = LabelGetTextDimensions("SoR_"..Window_Name.."CLAIM_WINDOW1TEXTPROXY")
-if Width < 130 then
+if Width < 110 then
 LabelSetText("SoR_"..Window_Name.."CLAIM_WINDOW1TEXT",L"<"..towstring(KEEP1_CLAIM)..L">")
+LabelSetText("SoR_"..Window_Name.."CLAIM_WINDOW1TEXT_BG",L"<"..towstring(KEEP1_CLAIM)..L">")
 else
 local ShortGName = wstring.match(wstring.gsub(wstring.gsub(wstring.gsub(towstring(KEEP1_CLAIM),L" of ", L"O"), L"%s",L""), L"%l*", L""), L"([^^]+)^?.*")  --This is for Shortening Guildnames
 LabelSetText("SoR_"..Window_Name.."CLAIM_WINDOW1TEXT",L"<"..towstring(ShortGName)..L">")
+LabelSetText("SoR_"..Window_Name.."CLAIM_WINDOW1TEXT_BG",L"<"..towstring(ShortGName)..L">")
 end
 
 LabelSetTextColor("SoR_"..Window_Name.."CLAIM_WINDOW1TEXT",ClaimColor.r,ClaimColor.g,ClaimColor.b)
 WindowSetShowing("SoR_"..Window_Name.."KEEP1KEEPGLOW",true)
 else
 local ClaimColor = RoR_SoR.RealmColors[1]
-LabelSetText("SoR_"..Window_Name.."CLAIM_WINDOW1TEXT",L"Unclaimed")
+LabelSetText("SoR_"..Window_Name.."CLAIM_WINDOW1TEXT",L"UnClaimed") --unclaimed
+LabelSetText("SoR_"..Window_Name.."CLAIM_WINDOW1TEXT_BG",L"UnClaimed") --unclaimed
 LabelSetTextColor("SoR_"..Window_Name.."CLAIM_WINDOW1TEXT",ClaimColor.r,ClaimColor.g,ClaimColor.b)
 WindowSetShowing("SoR_"..Window_Name.."KEEP1KEEPGLOW",false)
 end
@@ -592,19 +651,21 @@ if KEEP2_CLAIM ~= "0" then
 local ClaimColor = RoR_SoR.RealmColors[KEEP2_Owner+1]
 LabelSetText("SoR_"..Window_Name.."CLAIM_WINDOW2TEXTPROXY",L"<"..towstring(KEEP2_CLAIM)..L">")
 local Width,Height = LabelGetTextDimensions("SoR_"..Window_Name.."CLAIM_WINDOW2TEXTPROXY")
-if Width < 130 then
+if Width < 110 then
 LabelSetText("SoR_"..Window_Name.."CLAIM_WINDOW2TEXT",L"<"..towstring(KEEP2_CLAIM)..L">")
+LabelSetText("SoR_"..Window_Name.."CLAIM_WINDOW2TEXT_BG",L"<"..towstring(KEEP2_CLAIM)..L">")
 else
 local ShortGName = wstring.match(wstring.gsub(wstring.gsub(wstring.gsub(towstring(KEEP2_CLAIM),L" of ", L"O"), L"%s",L""), L"%l*", L""), L"([^^]+)^?.*")  --This is for Shortening Guildnames
 LabelSetText("SoR_"..Window_Name.."CLAIM_WINDOW2TEXT",L"<"..towstring(ShortGName)..L">")
+LabelSetText("SoR_"..Window_Name.."CLAIM_WINDOW2TEXT_BG",L"<"..towstring(ShortGName)..L">")
 end
 
-LabelSetText("SoR_"..Window_Name.."CLAIM_WINDOW2TEXT",L"<"..towstring(KEEP2_CLAIM)..L">")
 LabelSetTextColor("SoR_"..Window_Name.."CLAIM_WINDOW2TEXT",ClaimColor.r,ClaimColor.g,ClaimColor.b)
 WindowSetShowing("SoR_"..Window_Name.."KEEP2KEEPGLOW",true)
 else
 local ClaimColor = RoR_SoR.RealmColors[1]
-LabelSetText("SoR_"..Window_Name.."CLAIM_WINDOW2TEXT",L"Unclaimed")
+LabelSetText("SoR_"..Window_Name.."CLAIM_WINDOW2TEXT",L"UnClaimed")--unclaimed
+LabelSetText("SoR_"..Window_Name.."CLAIM_WINDOW2TEXT_BG",L"UnClaimed")--unclaimed
 LabelSetTextColor("SoR_"..Window_Name.."CLAIM_WINDOW2TEXT",ClaimColor.r,ClaimColor.g,ClaimColor.b)
 WindowSetShowing("SoR_"..Window_Name.."KEEP2KEEPGLOW",false)
 end
@@ -617,6 +678,7 @@ end
 local LabelText = L""	
 	if KEEP1_State == 1	then	--Safe
 	LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",L"")
+	LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH_BG",L"")	
 	WindowStopAlphaAnimation( "SoR_"..Window_Name.."KEEP1KEEPDOOR1")
 	WindowStopAlphaAnimation( "SoR_"..Window_Name.."KEEP1KEEPDOOR2")
 	WindowStopAlphaAnimation( "SoR_"..Window_Name.."KEEP1LORD_ICON")
@@ -628,6 +690,7 @@ local LabelText = L""
 			WindowStartAlphaAnimation( "SoR_"..Window_Name.."KEEP1KEEPDOOR2", Window.AnimationType.LOOP, 1.0, 0.1, 0.5, false, 0.0, 0 ) --start the Door2 pulse
 		end
 		LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",LabelText)
+		LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH_BG",LabelText)		
 		RoR_SoR.KeepStatus[Window_Name][1] = LabelText
 	elseif KEEP1_State == 3	then	--InnerDoor attacked
 		if KEEP1_Door1 > 0 then LabelText = towstring(KEEP1_Door1)..L"%" else LabelText = L"" end	
@@ -636,9 +699,11 @@ local LabelText = L""
 			WindowStartAlphaAnimation( "SoR_"..Window_Name.."KEEP1KEEPDOOR1", Window.AnimationType.LOOP, 1.0, 0.1, 0.5, false, 0.0, 0 ) --start the Door1 pulse
 		end	
 		LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",LabelText)	
+		LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH_BG",LabelText)	
 		RoR_SoR.KeepStatus[Window_Name][1] = LabelText	
 	elseif KEEP1_State == 4 then	--Lord Attacked			
 	LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",towstring(KEEP1_Lord)..L"%")
+	LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH_BG",towstring(KEEP1_Lord)..L"%")
 	RoR_SoR.KeepStatus[Window_Name][1] = towstring(KEEP1_Lord)..L"%"	
 		if RoR_SoR.KEEP_States[Window_Name][1] ~= 4 then
 			RoR_SoR.KEEP_States[Window_Name][1] = 4	
@@ -647,13 +712,16 @@ local LabelText = L""
 	elseif KEEP1_State == 5	then	--Captured
 		RoR_SoR.KEEP_States[Window_Name][1] = 5	
 		LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",L"Captured")
+		LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH_BG",L"Captured")	
 	elseif KEEP1_State == 6	then	--Locked
 		RoR_SoR.KEEP_States[Window_Name][1] = 6
 		LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",L"Locked")		
+		LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH_BG",L"Locked")		
 	end					
 	--KEEP 2
 	if KEEP2_State == 1	then	--Safe
 	LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH",L"")
+	LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH_BG",L"")	
 	WindowStopAlphaAnimation( "SoR_"..Window_Name.."KEEP2KEEPDOOR1")
 	WindowStopAlphaAnimation( "SoR_"..Window_Name.."KEEP2KEEPDOOR2")
 	WindowStopAlphaAnimation( "SoR_"..Window_Name.."KEEP2LORD_ICON")
@@ -665,6 +733,7 @@ local LabelText = L""
 			WindowStartAlphaAnimation( "SoR_"..Window_Name.."KEEP2KEEPDOOR2", Window.AnimationType.LOOP, 1.0, 0.1, 0.5, false, 0.0, 0 ) --start the Door2 pulse
 		end
 		LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH",LabelText)
+		LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH_BG",LabelText)
 		RoR_SoR.KeepStatus[Window_Name][2] = LabelText	
 	elseif KEEP2_State == 3	then	--InnerDoor attacked
 		if KEEP2_Door1 > 0 then LabelText = towstring(KEEP2_Door1)..L"%" else LabelText = L"" end
@@ -673,9 +742,11 @@ local LabelText = L""
 			WindowStartAlphaAnimation( "SoR_"..Window_Name.."KEEP2KEEPDOOR1", Window.AnimationType.LOOP, 1.0, 0.1, 0.5, false, 0.0, 0 ) --start the Door1 pulse
 		end	
 		LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH",LabelText)	
+		LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH_BG",LabelText)	
 		RoR_SoR.KeepStatus[Window_Name][2] = LabelText			
 	elseif KEEP2_State == 4 then	--Lord Attacked			
 	LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH",towstring(KEEP2_Lord)..L"%")
+	LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH_BG",towstring(KEEP2_Lord)..L"%")
 	RoR_SoR.KeepStatus[Window_Name][2] = towstring(KEEP2_Lord)..L"%"	
 		if RoR_SoR.KEEP_States[Window_Name][2] ~= 4 then
 			RoR_SoR.KEEP_States[Window_Name][2] = 4	
@@ -684,25 +755,27 @@ local LabelText = L""
 	elseif KEEP2_State == 5	then	--Captured
 		RoR_SoR.KEEP_States[Window_Name][2] = 5
 		LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH",L"Captured")
+		LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH_BG",L"Captured")
 	elseif KEEP2_State == 6	then	--Locked
 		RoR_SoR.KEEP_States[Window_Name][2] = 6
 		LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH",L"Locked")	
+		LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH_BG",L"Locked")	
 	end					
 		
 			
-			if KEEP1_Rank > 0 then
-				DynamicImageSetTextureSlice("SoR_"..Window_Name.."KEEP1KEEPRANK", "KeepDifficulty-"..KEEP1_Rank.."-star" )
+			if KEEP1_Rank[1] > 0 then
+				DynamicImageSetTextureSlice("SoR_"..Window_Name.."KEEP1KEEPRANK", "KeepDifficulty-"..KEEP1_Rank[1].."-star" )
 			else
 				DynamicImageSetTextureSlice("SoR_"..Window_Name.."KEEP1KEEPRANK", "KeepDifficulty-1-star" )
 			end
 			
-			if KEEP2_Rank > 0 then
-				DynamicImageSetTextureSlice("SoR_"..Window_Name.."KEEP2KEEPRANK", "KeepDifficulty-"..KEEP2_Rank.."-star" )
+			if KEEP2_Rank[1] > 0 then
+				DynamicImageSetTextureSlice("SoR_"..Window_Name.."KEEP2KEEPRANK", "KeepDifficulty-"..KEEP2_Rank[1].."-star" )
 			else
 				DynamicImageSetTextureSlice("SoR_"..Window_Name.."KEEP2KEEPRANK", "KeepDifficulty-1-star" )
 			end
-			WindowSetShowing("SoR_"..Window_Name.."KEEP1KEEPRANK",KEEP1_Rank>0)
-			WindowSetShowing("SoR_"..Window_Name.."KEEP2KEEPRANK",KEEP2_Rank>0)
+			WindowSetShowing("SoR_"..Window_Name.."KEEP1KEEPRANK",KEEP1_Rank[1]>0)
+			WindowSetShowing("SoR_"..Window_Name.."KEEP2KEEPRANK",KEEP2_Rank[1]>0)
 
 			WindowSetShowing("SoR_"..Window_Name.."KEEP1KEEPDOOR1",KEEP1_Door1>0)
 			WindowSetShowing("SoR_"..Window_Name.."KEEP1KEEPDOOR2",KEEP1_Door2>0)			
@@ -753,6 +826,7 @@ Line1 = towstring(GetObjectiveName(tonumber(Final)))
 if (RoR_SoR.Timers[tostring(BoId)][tonumber(Number)] ~= nil) and (RoR_SoR.Timers[tostring(BoId)][tonumber(Number)] > 0) then Line2 = L"<icon29979>"..towstring(TimeUtils.FormatClock(RoR_SoR.Timers[tostring(BoId)][tonumber(Number)])) else Line2 = L"" end
 Line3 =RoR_SoR.GetTooltipIcon(Owner,State)
 
+
 elseif WindowName:match("SoR_+[^%.]+KEEP.") then
 	local KeepId = string.match( WindowName,"SoR_(%d+)KEEP.")
 	local Number = string.match( WindowName,"KEEP(%d+)")
@@ -771,10 +845,10 @@ end
 
 	if KEEP_DATA.Claim ~= "0" then 
 			Line4 = L"<"..towstring(KEEP_DATA.Claim)..L">"
-			ClaimColor = RoR_SoR.RealmColors[Owner+1]
+			ClaimColor = RoR_SoR.RealmColors[Owner+1] or 1
 		else 
-			Line4 = L"Unclaimed" 
-			ClaimColor = RoR_SoR.RealmColors[1]	
+			Line4 = L"UnClaimed" --unclaimed
+			ClaimColor = RoR_SoR.RealmColors[1]	or 1
 		end
 	end	
 		Tooltips.CreateTextOnlyTooltip(SystemData.MouseOverWindow.name,nil)
@@ -790,7 +864,7 @@ end
 			Tooltips.SetTooltipText( 2, 2,Line4)			
 			Tooltips.SetTooltipColorDef( 2, 2, ClaimColor)
 		end
-		Tooltips.SetTooltipColorDef( 3, 1, RoR_SoR.RealmColors[Owner+1] )
+		Tooltips.SetTooltipColorDef( 3, 1, RoR_SoR.RealmColors[Owner+1] or 1 )
 		
 		if Line5 ~= L"" then
 			Tooltips.SetTooltipText( 4, 1,towstring(Line5))			
@@ -822,95 +896,114 @@ end
 
 
 function RoR_SoR.TIMER_UPDATE(elapsedTime)
-if RoR_SoR.Timers ~= nil then
-	for k,v in pairs(RoR_SoR.Timers) do
-		if v ~= nil then
-			for a,b in pairs(v) do
---			k - Area id , v - bonumber, a-bonumber, b-value
-			RoR_SoR.Timers[tostring(k)][a] = b-elapsedTime
-			
-				if DoesWindowExist("SoR_"..k) then	
-					if RoR_SoR.Fort[tostring(k)] == nil then
-						LabelSetText("SoR_"..k.."BO"..a.."TIMER",towstring(towstring(TimeUtils.FormatClock(RoR_SoR.Timers[tostring(k)][a]))))
-						if RoR_SoR.BO_States[k][a] ~= 4 then
-							local Builer = 31 - (tonumber(RoR_SoR.Timers[tostring(k)][a])/1.34)
-							if (Builer >= 0) and (RoR_SoR.Timers[tostring(k)][a] >= 0) then
-								WindowSetDimensions("SoR_"..k.."BO"..a.."Flag",31,Builer)
-							else
-								WindowSetDimensions("SoR_"..k.."BO"..a.."Flag",31,31)
-							end
-						end	
-					else
-						LabelSetText("SoR_"..k.."_TIMER",towstring(towstring(TimeUtils.FormatClock(RoR_SoR.Timers[tostring(k)][a])))..L"<icon29979>")
+	if RoR_SoR.Timers ~= nil then
+		for k,v in pairs(RoR_SoR.Timers) do
+			if v ~= nil then
+				for a,b in pairs(v) do
+	--			k - Area id , v - bonumber, a-bonumber, b-value
+				RoR_SoR.Timers[tostring(k)][a] = b-elapsedTime
+				
+					if DoesWindowExist("SoR_"..k) then	
+						if RoR_SoR.Fort[tostring(k)] == nil then
+							LabelSetText("SoR_"..k.."BO"..a.."TIMER",towstring(towstring(TimeUtils.FormatClock(RoR_SoR.Timers[tostring(k)][a]))))
+							LabelSetText("SoR_"..k.."BO"..a.."TIMER_BG",towstring(towstring(TimeUtils.FormatClock(RoR_SoR.Timers[tostring(k)][a]))))						
+							if RoR_SoR.BO_States[k][a] ~= 4 then
+								local Builer = 31 - (tonumber(RoR_SoR.Timers[tostring(k)][a])/1.34)
+								if (Builer >= 0) and (RoR_SoR.Timers[tostring(k)][a] >= 0) then
+									WindowSetDimensions("SoR_"..k.."BO"..a.."Flag",31,Builer)
+								else
+									WindowSetDimensions("SoR_"..k.."BO"..a.."Flag",31,31)
+								end
+							end	
+						else
+							LabelSetText("SoR_"..k.."_TIMER",towstring(towstring(TimeUtils.FormatClock(RoR_SoR.Timers[tostring(k)][a])))..L"<icon29979>")
+							LabelSetText("SoR_"..k.."_TIMER_BG",towstring(towstring(TimeUtils.FormatClock(RoR_SoR.Timers[tostring(k)][a])))..L"<icon29979>")						
+						end
 					end
 				end
-			end
-		end		
-	WindowSetAlpha("SoR_"..k.."Background2",WindowGetAlpha("RoR_SoR_Main_Window"))
-	WindowSetShowing("SoR_"..k.."Background2",RoR_SoR.Settings.DrawBackground)
-	WindowSetShowing("SoR_"..k.."Banner",RoR_SoR.Settings.DrawBanner)	
-		if DoesWindowExist("SoR_"..k.."BG") then
-			WindowSetAlpha("SoR_"..k.."BG",0.25*(WindowGetAlpha("RoR_SoR_Main_Window")))
-			WindowSetShowing("SoR_"..k.."BG",RoR_SoR.Settings.DrawBackground)		
-		end	
-	end
-	
-	
-	
-	if (Popper.m_HideCountdown > 0)
-    then
-        Popper.m_HideCountdown = Popper.m_HideCountdown - elapsedTime
-					
-        if (Popper.m_HideCountdown <= 0)
-        then
-            local windowName        = SystemData.MouseOverWindow.name
-            local overSidebarOrChild = false
-            while (windowName ~= "Root")
-            do
-                if (windowName:find("SoR_") or WindowGetParent (windowName) == "RoR_SoR_Main_Window")
-                then
-                    overSidebarOrChild = true	
-						RoR_SoR.ShowPopper()
-                    break
-                end
-                					
-                windowName = WindowGetParent (windowName)
-            end
-            
-            if (overSidebarOrChild == false)
-            then
-                RoR_SoR.HidePopper ()
-            else
-                Popper.m_HideCountdown = c_DEFAULT_HIDE_TIMER
-            end
-        end
-    end
-	
-	
-end	
-
-if RoR_SoR.ZoneTimer ~= nil then
-	for k,v in pairs(RoR_SoR.ZoneTimer) do
-		if DoesWindowExist("SoR_"..k) then
-			if v > 0 then 
-			RoR_SoR.ZoneTimer[k] = RoR_SoR.ZoneTimer[k] - elapsedTime 
-			else
-			RoR_SoR.RemoveWindow(k)			
+			end		
+		WindowSetAlpha("SoR_"..k.."Background2",WindowGetAlpha("RoR_SoR_Main_Window"))
+		WindowSetShowing("SoR_"..k.."Background2",RoR_SoR.Settings.DrawBackground)
+		WindowSetShowing("SoR_"..k.."Banner",RoR_SoR.Settings.DrawBanner)	
+			if DoesWindowExist("SoR_"..k.."BG") then
+				WindowSetAlpha("SoR_"..k.."BG",0.25*(WindowGetAlpha("RoR_SoR_Main_Window")))
+				WindowSetShowing("SoR_"..k.."BG",RoR_SoR.Settings.DrawBackground)		
+			end	
+		end
+		
+		
+		
+		if (Popper.m_HideCountdown >= 0)
+		then
+			Popper.m_HideCountdown = Popper.m_HideCountdown - elapsedTime
+						
+			if (Popper.m_HideCountdown <= 0)
+			then
+				local windowName        = SystemData.MouseOverWindow.name
+				local overSidebarOrChild = false
+				while (windowName ~= "Root")
+				do
+					if (windowName:find("SoR_") or WindowGetParent (windowName) == "RoR_SoR_Main_Window")
+					then
+						overSidebarOrChild = true	
+							RoR_SoR.ShowPopper()
+						break
+					end
+										
+					windowName = WindowGetParent (windowName)
+				end
+				
+				if (overSidebarOrChild == false)
+				then
+					RoR_SoR.HidePopper ()
+				else
+					Popper.m_HideCountdown = c_DEFAULT_HIDE_TIMER
+				end
 			end
 		end
+		
+		
+	end	
+
+	if RoR_SoR.Settings.OnlyActive == true then
+		if RoR_SoR.ZoneNames[GameData.Player.zone] ~= nil and (RoR_SoR.OpenZones[tostring(RoR_SoR.ZoneNames[GameData.Player.zone][1])] ~= nil or RoR_SoR.OpenZones[tostring(RoR_SoR.ZoneNames[GameData.Player.zone][2])] ~= nil) then		
+			for k,v in pairs(RoR_SoR.OpenZones) do		
+				local Window_Name = tostring(k)
+				if (RoR_SoR.ZoneNames[GameData.Player.zone][1] ~= tonumber(Window_Name)) and (RoR_SoR.ZoneNames[GameData.Player.zone][2] ~= tonumber(Window_Name)) then
+					RoR_SoR.RemoveWindow(k)			
+				end
+			end	
+
+		end
 	end
-end
 
 
-if RoR_Window_Scale ~= WindowGetScale("RoR_SoR_Main_Window") then
-RoR_SoR.OnSizeUpdated()
-RoR_Window_Scale = WindowGetScale("RoR_SoR_Main_Window")
-end
+	if RoR_SoR.ZoneTimer ~= nil then
+		for k,v in pairs(RoR_SoR.ZoneTimer) do
+			if DoesWindowExist("SoR_"..k) then
+				if v > 0 then 
+				RoR_SoR.ZoneTimer[k] = RoR_SoR.ZoneTimer[k] - elapsedTime 
+				else
+				RoR_SoR.RemoveWindow(k)			
+				RoR_SoR.ZoneTimer[k] = nil
+				end
+			else
+			RoR_SoR.ZoneTimer[k] = nil
+			end
+		end
+			RoR_SoR.Restack()	
+	end
+
+
+	if RoR_Window_Scale ~= WindowGetScale("RoR_SoR_Main_Window") then
+		RoR_SoR.OnSizeUpdated()
+		RoR_Window_Scale = WindowGetScale("RoR_SoR_Main_Window")
+	end
 end
 
 function RoR_SoR.OnSizeUpdated()
-RoR_SoR.Restack()
-return		
+	RoR_SoR.Restack()
+	return		
 end
 
 function RoR_SoR.RemoveWindow(Number)
@@ -925,7 +1018,6 @@ function RoR_SoR.RemoveWindow(Number)
 		RoR_SoR.BO_IDs[Number] = nil
 		RoR_SoR.KEEP_IDs[Number] = nil
 		RoR_SoR.Timers[tostring(Number)] = nil
-		RoR_SoR.Restack()
 	end
 	return
 end
@@ -950,6 +1042,7 @@ if RoR_SoR.StackSort == nil then return end
 				end				
 			end
 		end
+		RoR_SoR.Restack()		
 return
 end
 
@@ -1195,6 +1288,8 @@ local TypeName = {"/say ","/party ","/warband ","/2 ","/t4 "}
 			SendChatText(towstring(TypeName[SelectedChannel])..L"Declaring Defence on: "..towstring(LineWord1), L"")
 	elseif Type == 4 then
 			SendChatText(towstring(TypeName[SelectedChannel])..L"Relocate to: "..towstring(LineWord1), L"")
+	elseif Type == 5 then
+			SendChatText(towstring(TypeName[SelectedChannel])..towstring(LineWord1)..L" RvR Population: "..towstring(LineWord2)..L" � "..towstring(LineWord3)..towstring(LineWord4), L"")			
 	end
 end				
 
@@ -1259,11 +1354,42 @@ local function MakeCallBack2( LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,
 
 end
 
+function RoR_SoR.POPOption()
+local WindowName = tostring(SystemData.MouseOverWindow.name)
+local Zone_Id = string.match( WindowName,"SoR_(%d+)POP")
+local Line1 = towstring(GetZoneName(tonumber(Zone_Id)))
+local LineWord1 = towstring(Line1)
+local LineWord2 = towstring(CreateHyperLink(L"0",L"Order: "..towstring(RoR_SoR.ZoneStatus[tostring(Zone_Id)].Order_Pop), {75,75,255}, {} ))
+local LineWord3 = towstring(CreateHyperLink(L"0",L"Destro: "..towstring(RoR_SoR.ZoneStatus[tostring(Zone_Id)].Destro_Pop), {255,25,25}, {} ))
+local LineWord4 = L""
+
+	if RoR_SoR.ZoneStatus[tostring(Zone_Id)].AAO[1] ~= "0" then
+		local Color = RoR_SoR.RealmColors[(RoR_SoR.ZoneStatus[tostring(Zone_Id)].AAO[1])+3]
+		LineWord4 = L" � AAO: "..towstring(CreateHyperLink(L"0",towstring(GetRealmName(tonumber(RoR_SoR.ZoneStatus[tostring(Zone_Id)].AAO[1])))..L" "..towstring(RoR_SoR.ZoneStatus[tostring(Zone_Id)].AAO[2])..L"%", {Color.r,Color.g,Color.b}, {} ))
+	end
+
+local LineWord5 = L"5"
+
+local function MakeCallBack( SelectedOption1,SelectedOption2 )
+		    return function() RoR_SoR.AnswerDialog(SelectedOption1,SelectedOption2) end
+		end
+		
+local function MakeCallBack2( LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,SelectedType )
+		    return function() RoR_SoR.ContextMenu1(LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,SelectedType ) end
+		end		
+		
+    EA_Window_ContextMenu.CreateContextMenu( "BroadCast Selection", EA_Window_ContextMenu.CONTEXT_MENU_1, LineWord1 )
+    EA_Window_ContextMenu.AddMenuDivider( EA_Window_ContextMenu.CONTEXT_MENU_1 )	
+	EA_Window_ContextMenu.AddCascadingMenuItem( L"<icon29962>BroadCast Population", MakeCallBack2(LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,5 ), false, 1 )
+    EA_Window_ContextMenu.Finalize()
+
+end
+
 function RoR_SoR.ContextMenu1(LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,SelectedType)
 local function MakeCallBack( LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,SelectedChannel,Type)
 		    return function() RoR_SoR.AnswerDialog(LineWord1,LineWord2,LineWord3,LineWord4,LineWord5,SelectedChannel,Type) end
 		end
-local TypeName = {"<icon29962>BroadCast Status","<icon29960>Declare Attack","<icon29961>Declare Defence","<icon29963>Relocate"}
+local TypeName = {"<icon29962>BroadCast Status","<icon29960>Declare Attack","<icon29961>Declare Defence","<icon29963>Relocate","<icon29963>BroadCast Population"}
 		
     EA_Window_ContextMenu.CreateContextMenu( tostring(TypeName[SelectedType]), EA_Window_ContextMenu.CONTEXT_MENU_2,towstring(TypeName[SelectedType]) )
     EA_Window_ContextMenu.AddMenuDivider( EA_Window_ContextMenu.CONTEXT_MENU_2 )	
@@ -1482,3 +1608,24 @@ end
  RoR_SoR.Settings.Offset = input
  EA_ChatWindow.Print(L"Offset is set to:"..towstring(input))
  end
+ 
+ 
+ --[[
+ 			if RoR_SoR.Settings.OnlyActive == true then  
+				if (GameData.Player.zone ~= 161 and GameData.Player.zone ~= 162 and RoR_SoR.OpenZones[tostring(RoR_SoR.ZoneNames[GameData.Player.zone][2])] ~= nil) then
+					if not (RoR_SoR.ZoneNames[GameData.Player.zone][1] == tonumber(Window_Name) or not RoR_SoR.ZoneNames[GameData.Player.zone][2] == tonumber(Window_Name))then return end
+				end
+			end
+ 
+ 
+ --]]
+function Surrender_Vote()
+	    local Vote_Yes = function()
+        SendChatText(L"/s .yes", L"")
+		end	
+		
+	    local Vote_No = function()
+        SendChatText(L"/s .no", L"")
+		end	
+DialogManager.MakeTwoButtonDialog( L"A Surrender Vote has been initiated! \n Cast your Vote for Surrendering the scenario \n\n Auto No in:", GetString(StringTables.Default.LABEL_YES),Vote_Yes,GetString(StringTables.Default.LABEL_NO),Vote_No,30,2)
+end

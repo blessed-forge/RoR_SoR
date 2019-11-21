@@ -99,9 +99,15 @@
 
 						<Label name="$parentTIMER" font="font_clear_small_bold" autoresize="true" textalign="center" wordwrap="true" layer="overlay" popable="false" handleinput="false">	
 						<Size><AbsPoint x="60" y="35" /></Size>
-						<Anchors><Anchor point="bottom" relativePoint="center" relativeTo="$parentFlagBG"><AbsPoint x="0" y="2" /></Anchor></Anchors>
+						<Anchors><Anchor point="bottom" relativePoint="center" relativeTo="$parentFlagBG"><AbsPoint x="0" y="0" /></Anchor></Anchors>
 						<Color r="255" g="255" b="255" />
-						</Label>			
+						</Label>	
+
+						<Label name="$parentTIMER_BG" font="font_clear_small_bold" autoresize="true" textalign="center" wordwrap="true" layer="background" popable="false" handleinput="false">	
+						<Size><AbsPoint x="60" y="35" /></Size>
+						<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parentTIMER"><AbsPoint x="0" y="1.5" /></Anchor></Anchors>
+						<Color r="0" g="0" b="0" a="0.8" />
+						</Label>							
 			
 <!-- 	<FullResizeImage name="$parentBG2" inherits="EA_FullResizeImage_TintableSolidBackground" layer="background" alpha="0.3" handleinput="false">        
 	<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parent"><AbsPoint x="0" y="0"/></Anchor><Anchor point="bottomright" relativePoint="bottomright" relativeTo="$parent"><AbsPoint x="0" y="0"/></Anchor></Anchors>
@@ -153,23 +159,30 @@
 								<Anchors><Anchor point="center" relativePoint="center" relativeTo="$parentBannerMid"><AbsPoint x="0" y="0" /></Anchor></Anchors>
 								<Color r="255" g="255" b="255" />
 								</Label>	
+
+								<Label name="$parent_BannerLabel_BG" font="font_default_text_small" autoresize="true" textalign="center"  layer="secondary" popable="false" textAutoFitMinScale="0.3" handleinput="false">	
+								<Size><AbsPoint x="230" y="18" /></Size>
+								<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parent_BannerLabel"><AbsPoint x="0" y="1.5" /></Anchor></Anchors>
+								<Color r="0" g="0" b="0" a="0.8"/>
+								</Label>
+								
 						
 							<Window name="$parentBanner" handleinput="false" layer="secondary"> 
 							<Anchors><Anchor point="top" relativePoint="top" relativeTo="$parent"><AbsPoint x="0" y="0" /></Anchor></Anchors>
 							<Size><AbsPoint x="300" y="40" /></Size>
 							<Windows>
 						
-								<DynamicImage name="$parentMid"  texture="Banner_Mid_2" layer="default"  texturescale="0.8" handleinput="false" >
+								<DynamicImage name="$parentMid"  texture="Banner_Mid_2" layer="background"  texturescale="0.8" handleinput="false" >
 								<Size><AbsPoint x="234" y="37" /></Size>
 								<Anchors><Anchor point="top" relativePoint="top" relativeTo="$parent"><AbsPoint x="0" y="2" /></Anchor></Anchors>
 								</DynamicImage>          											
 
-								<DynamicImage name="$parentLeft"  texture="Banner_Left_2" layer="default"  texturescale="0.8" handleinput="false" >
+								<DynamicImage name="$parentLeft"  texture="Banner_Left_2" layer="background"  texturescale="0.8" handleinput="false" >
 								<Size><AbsPoint x="32" y="37" /></Size>
 								<Anchors><Anchor point="topleft" relativePoint="topright" relativeTo="$parentMid"><AbsPoint x="0" y="0" /></Anchor></Anchors>
 								</DynamicImage>       
 
-								<DynamicImage name="$parentRight"  texture="Banner_Right_2" layer="default"  texturescale="0.8" handleinput="false" >
+								<DynamicImage name="$parentRight"  texture="Banner_Right_2" layer="background"  texturescale="0.8" handleinput="false" >
 								<Size><AbsPoint x="32" y="37" /></Size>
 								<Anchors><Anchor point="topright" relativePoint="topleft" relativeTo="$parentMid"><AbsPoint x="0" y="0" /></Anchor></Anchors>
 								</DynamicImage> 
@@ -189,13 +202,13 @@
 								<Windows>
 										
 								<DynamicImage name="$parentKEEPICON" texture="map_markers01" handleinput="false" popable="false" slice="Keep-Grayed" id="1" textureScale="1.2" layer="secondary">
-								<Size><AbsPoint x="50" y="50" /></Size>
+								<Size><AbsPoint x="49" y="50" /></Size>
 								<Anchors><Anchor point="center" relativePoint="center" relativeTo="$parent"><AbsPoint x="0" y="0" /></Anchor></Anchors>
 								</DynamicImage>	
 
 								<DynamicImage name="$parentKEEPGLOW" texture="SoR_Keep_Glow" handleinput="false" popable="false" id="1" textureScale="1.2" layer="default">
 								<Size>
-								<AbsPoint x="60" y="60" />
+								<AbsPoint x="58" y="58" />
 								</Size>
 								<Anchors>
 								<Anchor point="topleft" relativePoint="topleft" relativeTo="$parentKEEPICON">
@@ -215,27 +228,7 @@
 								<Size><AbsPoint x="36" y="36" /></Size>
 								<Anchors><Anchor point="center" relativePoint="center" relativeTo="$parentKEEPDOOR1"><AbsPoint x="0" y="0" /></Anchor></Anchors>
 								</DynamicImage>		
-<!--
-								<DynamicImage name="$parentKEEPDOOR2" texture="SoR_Keep_Door" handleinput="false" id="1" textureScale="0.75" popable="false" layer="default">
-								<Size><AbsPoint x="21" y="21" /></Size>
-								<Anchors><Anchor point="bottomright" relativePoint="bottomleft" relativeTo="$parentKEEPDOOR1"><AbsPoint x="-2" y="0" /></Anchor></Anchors>
-								</DynamicImage>										
-	
-						<DynamicImage name="$parentLORD_ICON" texture="SoR_LordIcon" handleinput="false" popable="false" id="1" textureScale="1.25" layer="default">
-						<Size><AbsPoint x="26" y="26" /></Size>
-						<Anchors><Anchor point="bottom" relativePoint="bottom" relativeTo="$parentKEEPDOOR1"><AbsPoint x="0" y="-5" /></Anchor></Anchors>
-						</DynamicImage>		
-	
-								<Label name="$parentHEALTH" font="font_clear_small_bold" autoresize="true" textAutoFitMinScale="0.3" textalign="center" wordwrap="false" layer="overlay" popable="false" handleinput="false">	
-								<Size><AbsPoint x="70" y="35" /></Size>
-								<Anchors><Anchor point="bottom" relativePoint="top" relativeTo="$parentKEEPICON"><AbsPoint x="0" y="-1" /></Anchor></Anchors>
-								<Color r="255" g="255" b="255" />
-								</Label>			
-										-->																	
-<!-- 									<FullResizeImage name="$parentBG" inherits="EA_FullResizeImage_TintableSolidBackground" layer="background" alpha="0.3" handleinput="false">        
-									<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parent"><AbsPoint x="0" y="0"/></Anchor><Anchor point="bottomright" relativePoint="bottomright" relativeTo="$parent"><AbsPoint x="0" y="0"/></Anchor></Anchors>
-									<TintColor r="255" g="10" b="255" a="0.3"/>						
-									</FullResizeImage>			 -->						
+								
 								</Windows>	
 						</Window>
 			
@@ -269,16 +262,42 @@
 						<Color r="250" g="250" b="200" />
 						</Label>						
 						-->
-						<Label name="$parent_TIMER" font="font_clear_medium_bold" autoresize="true" textalign="right" wordwrap="true" layer="overlay" popable="false" handleinput="false">	
+
+						<Label name="$parent_STAGE" font="font_default_text_small" autoresize="true" textalign="right" wordwrap="true" layer="overlay" popable="false" handleinput="false">	
 						<Size><AbsPoint x="90" y="65" /></Size>
-						<Anchors><Anchor point="right" relativePoint="right" relativeTo="$parent"><AbsPoint x="-20" y="-15" /></Anchor></Anchors>
+						<Anchors><Anchor point="right" relativePoint="right" relativeTo="$parent"><AbsPoint x="-25" y="-22" /></Anchor></Anchors>
 						<Color r="250" g="250" b="200" />
 						</Label>
+						
+						<Label name="$parent_STAGE_BG" font="font_default_text_small" autoresize="true" textalign="right" wordwrap="true" layer="background" popable="false" handleinput="false">	
+						<Size><AbsPoint x="90" y="65" /></Size>
+						<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parent_STAGE"><AbsPoint x="0" y="1.5" /></Anchor></Anchors>
+						<Color r="0" g="0" b="0" a="0"/>
+						</Label>					
+
+
+						<Label name="$parent_TIMER" font="font_clear_medium_bold" autoresize="true" textalign="right" wordwrap="true" layer="overlay" popable="false" handleinput="false">	
+						<Size><AbsPoint x="90" y="65" /></Size>
+						<Anchors><Anchor point="right" relativePoint="right" relativeTo="$parent"><AbsPoint x="-20" y="0" /></Anchor></Anchors>
+						<Color r="250" g="250" b="200" />
+						</Label>
+						
+						<Label name="$parent_TIMER_BG" font="font_clear_medium_bold" autoresize="true" textalign="right" wordwrap="true" layer="background" popable="false" handleinput="false">	
+						<Size><AbsPoint x="90" y="65" /></Size>
+						<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parent_TIMER"><AbsPoint x="0" y="1.5" /></Anchor></Anchors>
+						<Color r="0" g="0" b="0" a="0"/>
+						</Label>						
 
 						<Label name="$parent_HEALTH" font="font_clear_large_bold" autoresize="true" textalign="center" wordwrap="true" layer="overlay" popable="false" handleinput="false">	
 						<Size><AbsPoint x="290" y="65" /></Size>
 						<Anchors><Anchor point="center" relativePoint="center" relativeTo="$parent"><AbsPoint x="0" y="-10" /></Anchor></Anchors>
 						<Color r="250" g="250" b="200" />
+						</Label>							
+						
+						<Label name="$parent_HEALTH_BG" font="font_clear_large_bold" autoresize="true" textalign="center" wordwrap="true" layer="secondary" popable="false" handleinput="false">	
+						<Size><AbsPoint x="290" y="65" /></Size>
+						<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parent_HEALTH"><AbsPoint x="0" y="1.5" /></Anchor></Anchors>
+						<Color r="0" g="0" b="0" a="0"/>
 						</Label>							
 						
 		</Windows>		 				 
@@ -299,7 +318,7 @@
 						</Window>
 						
 
-					<DynamicImage name="$parentBG" texture="EA_Tome" slice="PairingGvDSelected" texturescale="0.7" alpha="0.25" mirrorTexCoords="false" layer="background">
+					<DynamicImage name="$parentBG" texture="EA_Tome" slice="PairingGvDSelected" texturescale="0.7" alpha="1" mirrorTexCoords="false" layer="background">
 					<Size><AbsPoint x="297" y="103"/></Size>					
 				<Anchors>
 				<Anchor point="topleft" relativePoint="topleft" relativeTo="$parent">
@@ -317,7 +336,13 @@
 								<Anchors><Anchor point="center" relativePoint="center" relativeTo="$parentBannerMid"><AbsPoint x="0" y="0" /></Anchor></Anchors>
 								<Color r="255" g="255" b="255" />
 								</Label>	
-						
+								
+								<Label name="$parent_BannerLabel_BG" font="font_default_text_small" autoresize="true" textalign="center"  layer="secondary" popable="false" textAutoFitMinScale="0.3" handleinput="false">	
+								<Size><AbsPoint x="230" y="18" /></Size>
+								<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parent_BannerLabel"><AbsPoint x="0" y="1.5" /></Anchor></Anchors>
+								<Color r="0" g="0" b="0" a="0.8"/>
+								</Label>							
+
 							<Window name="$parentBanner" handleinput="false" layer="secondary"> 
 							<Anchors><Anchor point="top" relativePoint="top" relativeTo="$parent"><AbsPoint x="0" y="0" /></Anchor></Anchors>
 							<Size><AbsPoint x="300" y="40" /></Size>
@@ -346,12 +371,66 @@
 						</Window>
 						
 								
-								<Label name="$parentAAO" font="font_clear_small" autoresize="true" textAutoFitMinScale="0.3" textalign="center" wordwrap="false" layer="default" popable="false" handleinput="false">	
+								<Label name="$parentAAO" font="font_clear_small_bold" autoresize="true" textAutoFitMinScale="0.3" textalign="center" wordwrap="false" layer="default" popable="false" handleinput="false">	
 								<Size><AbsPoint x="70" y="35" /></Size>
-								<Anchors><Anchor point="top" relativePoint="top" relativeTo="$parent"><AbsPoint x="0" y="38" /></Anchor></Anchors>
-								<Color r="255" g="255" b="255" />
+								<Anchors><Anchor point="top" relativePoint="top" relativeTo="$parent"><AbsPoint x="0" y="37" /></Anchor></Anchors>
+								<Color r="255" g="255" b="255"  a="0.8"/>
 								</Label>	
-						
+
+								<Label name="$parentAAO_BG" font="font_clear_small_bold" autoresize="true" textAutoFitMinScale="0.3" textalign="center" wordwrap="false" layer="background" popable="false" handleinput="false">	
+								<Size><AbsPoint x="70" y="35" /></Size>
+								<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parentAAO"><AbsPoint x="0" y="1.5" /></Anchor></Anchors>
+								<Color r="0" g="0" b="0" a="0.8" />
+								</Label>	
+	
+						<Window name="$parentPOP" layer="default" sticky="false" handleinput="true" >
+								<Size><AbsPoint x="160" y="30" /></Size>
+								<Anchors><Anchor point="bottom" relativePoint="top" relativeTo="$parentAAO"><AbsPoint x="0" y="-3" /></Anchor></Anchors>
+								<EventHandlers><EventHandler event="OnRButtonUp" function="RoR_SoR.POPOption" /></EventHandlers> 								
+								<Windows>
+										
+								<DynamicImage name="$parentICON" texture="map_markers01" handleinput="false" popable="false" slice="RvR-Hotspot" id="1" textureScale="0.8" layer="default">
+								<Size><AbsPoint x="26" y="26" /></Size>
+								<Anchors><Anchor point="center" relativePoint="center" relativeTo="$parent"><AbsPoint x="0" y="-1" /></Anchor></Anchors>				
+								</DynamicImage>	
+
+								<DynamicImage name="$parentICON_BG" texture="map_markers01" handleinput="false" popable="false" slice="RvR-Hotspot" id="1" textureScale="0.8" layer="background">
+								<Size><AbsPoint x="26" y="26" /></Size>
+								<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parentICON"><AbsPoint x="0" y="1.5" /></Anchor></Anchors>
+								<TintColor r="0" g="0" b="0" a="0.8"/>						
+								</DynamicImage>	
+
+								<Label name="$parentOrder" font="font_clear_small_bold" autoresize="true" textAutoFitMinScale="0.3" textalign="right" wordwrap="false" layer="overlay" popable="false" handleinput="false">	
+								<Size><AbsPoint x="40" y="35" /></Size>
+								<Anchors><Anchor point="left" relativePoint="right" relativeTo="$parentICON"><AbsPoint x="-3" y="-1" /></Anchor></Anchors>
+								<Color r="107" g="191" b="255" />
+								</Label>			
+								<Label name="$parentOrder_BG" font="font_clear_small_bold" autoresize="true" textAutoFitMinScale="0.3" textalign="right" wordwrap="false" layer="background" popable="false" handleinput="false">	
+								<Size><AbsPoint x="40" y="35" /></Size>
+								<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parentOrder"><AbsPoint x="0" y="1.5" /></Anchor></Anchors>
+								<Color r="0" g="0" b="0" a="0.8" />
+								</Label>			
+
+								
+								<Label name="$parentDestro" font="font_clear_small_bold" autoresize="true" textAutoFitMinScale="0.3" textalign="left" wordwrap="false" layer="overlay" popable="false" handleinput="false">	
+								<Size><AbsPoint x="40" y="35" /></Size>
+								<Anchors><Anchor point="right" relativePoint="left" relativeTo="$parentICON"><AbsPoint x="2" y="-1" /></Anchor></Anchors>
+								<Color r="255" g="105" b="105" />
+								</Label>	
+								
+								<Label name="$parentDestro_BG" font="font_clear_small_bold" autoresize="true" textAutoFitMinScale="0.3" textalign="left" wordwrap="false" layer="background" popable="false" handleinput="false">	
+								<Size><AbsPoint x="40" y="35" /></Size>
+								<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parentDestro"><AbsPoint x="0" y="1.5" /></Anchor></Anchors>
+								<Color r="0" g="0" b="0"  a="0.8"/>
+								</Label>								
+	<!--								<FullResizeImage name="$parentBG" inherits="EA_FullResizeImage_TintableSolidBackground" layer="background" alpha="0.3" handleinput="false">        
+									<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parent"><AbsPoint x="0" y="0"/></Anchor><Anchor point="bottomright" relativePoint="bottomright" relativeTo="$parent"><AbsPoint x="0" y="0"/></Anchor></Anchors>
+									<TintColor r="255" g="10" b="255" a="0.3"/>						
+									</FullResizeImage>		-->	 						
+								</Windows>	
+						</Window>
+
+	
 						<Window name="$parentVP" handleinput="false" layer="overlay"> 
 						<Anchors><Anchor point="top" relativePoint="top" relativeTo="$parent"><AbsPoint x="0" y="12" /></Anchor></Anchors>
 						<Size><AbsPoint x="300" y="140" /></Size>
@@ -392,30 +471,28 @@
 							</Window>
 					
 						<Label name="$parentPERCENT_ORDER" font="font_alert_outline_half_large" autoresize="true" textalign="center" wordwrap="true" layer="overlay" popable="false" handleinput="false">	
-						<Size>
-						<AbsPoint x="60" y="36" />
-						</Size>
-						<Anchors>
-						<Anchor point="left" relativePoint="center" relativeTo="$parentORDER">
-						<AbsPoint x="-46" y="4" />
-						</Anchor>
-						</Anchors>
+						<Size><AbsPoint x="60" y="36" /></Size>
+						<Anchors><Anchor point="left" relativePoint="center" relativeTo="$parentORDER"><AbsPoint x="-46" y="4" /></Anchor></Anchors>
 						<Color r="107" g="191" b="255" />
-						</Label>			
+						</Label>	
+
+						<Label name="$parentPERCENT_ORDER_BG" font="font_alert_outline_half_large" autoresize="true" textalign="center" wordwrap="true" layer="secondary" popable="false" handleinput="false">	
+						<Size><AbsPoint x="60" y="36" /></Size>
+						<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parentPERCENT_ORDER"><AbsPoint x="0" y="1.5" /></Anchor></Anchors>
+						<Color r="0" g="0" b="0" a="0.8"/>
+						</Label>							
 
 						<Label name="$parentPERCENT_DESTRO" font="font_alert_outline_half_large" autoresize="true" textalign="center" wordwrap="true" layer="overlay" popable="false" handleinput="false">	
-						<Size>
-						<AbsPoint x="60" y="36" />
-						</Size>
-						<Anchors>
-						<Anchor point="right" relativePoint="center" relativeTo="$parentDESTRO">
-						<AbsPoint x="46" y="4" />
-						</Anchor>
-						</Anchors>
+						<Size><AbsPoint x="60" y="36" /></Size>
+						<Anchors><Anchor point="right" relativePoint="center" relativeTo="$parentDESTRO"><AbsPoint x="46" y="4" /></Anchor></Anchors>
 						<Color r="255" g="105" b="105" />
 						</Label>
 
-					
+						<Label name="$parentPERCENT_DESTRO_BG" font="font_alert_outline_half_large" autoresize="true" textalign="center" wordwrap="true" layer="secondary" popable="false" handleinput="false">	
+						<Size><AbsPoint x="60" y="36" /></Size>
+						<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parentPERCENT_DESTRO"><AbsPoint x="0" y="1.5" /></Anchor></Anchors>
+						<Color r="0" g="0" b="0" a="0.8"/>
+						</Label>						
 <!--
 						<DynamicImage name="$parentLOCK" texture="SoR_Neutral" handleinput="true" layer="overlay">
 						<EventHandlers> 
@@ -460,8 +537,30 @@
 								
 								<DynamicImage name="$parentKEEPRANK" texture="map_markers01" handleinput="false" popable="false" slice="KeepDifficulty-5-star" id="1" textureScale="1.3" layer="default">
 								<Size><AbsPoint x="56" y="12" /></Size>
-								<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parentKEEPICON"><AbsPoint x="-14" y="-12" /></Anchor></Anchors>
+								<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parentKEEPICON"><AbsPoint x="-14" y="-8" /></Anchor></Anchors>
 								</DynamicImage>			
+
+									<Window name="$parentPROGRESS" handleinput="false" layer="overlay"> 
+									<Anchors><Anchor point="topleft" relativePoint="bottomleft" relativeTo="$parentKEEPRANK"><AbsPoint x="10" y="1" /></Anchor></Anchors>
+									<Size><AbsPoint x="40" y="5" /></Size>
+										<Windows>					
+														<FullResizeImage name="$parentBG" inherits="EA_FullResizeImage_TintableSolidBackground" alpha="0.9" layer="default">
+														<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parent"><AbsPoint x="0" y="0" /></Anchor><Anchor point="bottomright" relativePoint="bottomright" relativeTo="$parent"><AbsPoint x="0" y="0" /></Anchor></Anchors>
+														<TintColor r="0" g="0" b="0" a="0"/>
+														</FullResizeImage>
+											
+											<Window name="$parentBAR" layer="default" sticky="false" >
+												<Size><AbsPoint x="40" y="5" /></Size>
+												<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parentPROGRESS"><AbsPoint x="1" y="1" /><!-- y="-26" --></Anchor></Anchors>									
+													<Windows>
+														<FullResizeImage name="$parentCOUNTER" inherits="EA_FullResizeImage_TintableSolidBackground" alpha="1" layer="default">
+														<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parent"><AbsPoint x="1" y="1" /></Anchor><Anchor point="bottomright" relativePoint="bottomright" relativeTo="$parent"><AbsPoint x="-1" y="-1" /></Anchor></Anchors>
+														<TintColor r="255" g="241" b="25" a="1"/>
+														</FullResizeImage>
+													</Windows>									
+											</Window>
+									</Windows>							
+								</Window>
 
 								<DynamicImage name="$parentKEEPDOOR1" texture="SoR_Keep_Door" handleinput="false" id="1" textureScale="0.75" popable="false" layer="default">
 								<Size><AbsPoint x="21" y="21" /></Size>
@@ -480,9 +579,15 @@
 	
 								<Label name="$parentHEALTH" font="font_clear_small_bold" autoresize="true" textAutoFitMinScale="0.3" textalign="center" wordwrap="false" layer="overlay" popable="false" handleinput="false">	
 								<Size><AbsPoint x="70" y="35" /></Size>
-								<Anchors><Anchor point="bottom" relativePoint="top" relativeTo="$parentKEEPICON"><AbsPoint x="0" y="-1" /></Anchor></Anchors>
+								<Anchors><Anchor point="bottom" relativePoint="top" relativeTo="$parentKEEPICON"><AbsPoint x="0" y="-3" /></Anchor></Anchors>
 								<Color r="255" g="255" b="255" />
 								</Label>			
+
+								<Label name="$parentHEALTH_BG" font="font_clear_small_bold" autoresize="true" textAutoFitMinScale="0.3" textalign="center" wordwrap="false" layer="background" popable="false" handleinput="false">	
+								<Size><AbsPoint x="70" y="35" /></Size>
+								<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parentHEALTH"><AbsPoint x="0" y="1.5" /></Anchor></Anchors>
+								<Color r="0" g="0" b="0" a="0.8"/>
+								</Label>										
 								
 
 								
@@ -516,6 +621,12 @@
 									<Size><AbsPoint x="140" y="25" /></Size>
 									<Anchors><Anchor point="left" relativePoint="left" relativeTo="$parent"><AbsPoint x="5" y="0" /></Anchor></Anchors>
 									<Color r="255" g="255" b="255" />
+									</Label>
+									
+									<Label name="$parentTEXT_BG" font="font_clear_small" autoresize="true" textalign="left" wordwrap="false" layer="background" popable="false" textAutoFitMinScale="0.3" handleinput="false">	
+									<Size><AbsPoint x="140" y="25" /></Size>
+									<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parentTEXT"><AbsPoint x="0" y="1.5" /></Anchor></Anchors>
+									<Color r="0" g="0" b="0" a="0.8"/>
 									</Label>
 									
 									<Label name="$parentTEXTPROXY" font="font_clear_small" autoresize="true" textalign="left" wordwrap="false" layer="background" alpha="0" popable="false" textAutoFitMinScale="0.3" handleinput="false">	
@@ -557,8 +668,31 @@
 								
 								<DynamicImage name="$parentKEEPRANK" texture="map_markers01" handleinput="false" popable="false" slice="KeepDifficulty-5-star" id="1" textureScale="1.3" layer="default">
 								<Size><AbsPoint x="56" y="12" /></Size>
-								<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parentKEEPICON"><AbsPoint x="-14" y="-12" /></Anchor></Anchors>
+								<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parentKEEPICON"><AbsPoint x="-14" y="-8" /></Anchor></Anchors>
 								</DynamicImage>													
+
+									<Window name="$parentPROGRESS" handleinput="false" layer="overlay"> 
+									<Anchors><Anchor point="topleft" relativePoint="bottomleft" relativeTo="$parentKEEPRANK"><AbsPoint x="10" y="1" /></Anchor></Anchors>
+									<Size><AbsPoint x="40" y="5" /></Size>
+										<Windows>					
+														<FullResizeImage name="$parentBG" inherits="EA_FullResizeImage_TintableSolidBackground" alpha="0.9" layer="default">
+														<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parent"><AbsPoint x="0" y="0" /></Anchor><Anchor point="bottomright" relativePoint="bottomright" relativeTo="$parent"><AbsPoint x="0" y="0" /></Anchor></Anchors>
+														<TintColor r="0" g="0" b="0" a="0"/>
+														</FullResizeImage>
+											
+											<Window name="$parentBAR" layer="default" sticky="false" >
+												<Size><AbsPoint x="40" y="5" /></Size>
+												<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parentPROGRESS"><AbsPoint x="1" y="1" /><!-- y="-26" --></Anchor></Anchors>									
+													<Windows>
+														<FullResizeImage name="$parentCOUNTER" inherits="EA_FullResizeImage_TintableSolidBackground" alpha="1" layer="default">
+														<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parent"><AbsPoint x="1" y="1" /></Anchor><Anchor point="bottomright" relativePoint="bottomright" relativeTo="$parent"><AbsPoint x="-1" y="-1" /></Anchor></Anchors>
+														<TintColor r="255" g="241" b="25" a="1"/>
+														</FullResizeImage>
+													</Windows>									
+											</Window>
+									</Windows>							
+								</Window>
+
 
 									<DynamicImage name="$parentKEEPDOOR1" texture="SoR_Keep_Door" handleinput="false" id="1" textureScale="0.75" popable="false" layer="default">
 									<Size><AbsPoint x="21" y="21" /></Size>
@@ -578,9 +712,15 @@
 								
 								<Label name="$parentHEALTH" font="font_clear_small_bold" autoresize="true"  textAutoFitMinScale="0.3" textalign="center" wordwrap="false" layer="overlay" popable="false" handleinput="false">	
 								<Size><AbsPoint x="70" y="35" /></Size>
-								<Anchors><Anchor point="bottom" relativePoint="top" relativeTo="$parentKEEPICON"><AbsPoint x="0" y="-1" /></Anchor></Anchors>
+								<Anchors><Anchor point="bottom" relativePoint="top" relativeTo="$parentKEEPICON"><AbsPoint x="0" y="-3" /></Anchor></Anchors>
 								<Color r="255" g="255" b="255" />
 								</Label>	
+
+								<Label name="$parentHEALTH_BG" font="font_clear_small_bold" autoresize="true"  textAutoFitMinScale="0.3" textalign="center" wordwrap="false" layer="background" popable="false" handleinput="false">	
+								<Size><AbsPoint x="70" y="35" /></Size>
+								<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parentHEALTH"><AbsPoint x="0" y="1.5" /></Anchor></Anchors>
+								<Color r="0" g="0" b="0" a="0.8"/>
+								</Label>									
 
 								
 <!-- 									<FullResizeImage name="$parentBG" inherits="EA_FullResizeImage_TintableSolidBackground" layer="background" alpha="0.3" handleinput="false">        
@@ -614,6 +754,12 @@
 									<Size><AbsPoint x="140" y="25" /></Size>
 									<Anchors><Anchor point="right" relativePoint="right" relativeTo="$parent"><AbsPoint x="-5" y="0" /></Anchor></Anchors>
 									<Color r="255" g="255" b="255" />
+									</Label>
+
+									<Label name="$parentTEXT_BG" font="font_clear_small" autoresize="true" textalign="right" wordwrap="false" layer="background" popable="false" textAutoFitMinScale="0.3" handleinput="false">	
+									<Size><AbsPoint x="140" y="25" /></Size>
+									<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parentTEXT"><AbsPoint x="0" y="1.5" /></Anchor></Anchors>
+									<Color r="0" g="0" b="0" a="0.8"/>
 									</Label>
 
 									<Label name="$parentTEXTPROXY" font="font_clear_small" autoresize="true" textalign="right" wordwrap="false" alpha="0" layer="background" popable="false" textAutoFitMinScale="0.3" handleinput="false">	
@@ -664,8 +810,8 @@
 		<Window name="RoR_SoR_Main_Window" layer="secondary" movable="true" popable="true" sticky="false"  savesettings="true" handleinput="true">
 		<Anchors><Anchor point="center" relativePoint="center" relativeTo="Root"><AbsPoint x="0" y="0" /></Anchor></Anchors>		
 		<Size><AbsPoint x="300" y="25" /></Size>		
-		<EventHandlers><EventHandler event="OnUpdate" function="RoR_SoR.TIMER_UPDATE" /><EventHandler event="OnRButtonUp" function="RoR_SoR.OnTabRBU" /><EventHandler event="OnMouseOver" function="RoR_SoR.ShowPopper"/><EventHandler event="OnSizeUpdated" function="RoR_SoR.OnSizeUpdated" /></EventHandlers>
- 				 
+	<!--	<EventHandlers><EventHandler event="OnUpdate" function="RoR_SoR.TIMER_UPDATE" /><EventHandler event="OnRButtonUp" function="RoR_SoR.OnTabRBU" /><EventHandler event="OnMouseOver" function="RoR_SoR.ShowPopper"/><EventHandler event="OnSizeUpdated" function="RoR_SoR.OnSizeUpdated" /></EventHandlers> -->
+ 	<EventHandlers><EventHandler event="OnRButtonUp" function="RoR_SoR.OnTabRBU" /><EventHandler event="OnMouseOver" function="RoR_SoR.ShowPopper"/><EventHandler event="OnSizeUpdated" function="RoR_SoR.OnSizeUpdated" /></EventHandlers>
 		</Window>	
 
 		
