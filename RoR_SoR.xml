@@ -16,6 +16,8 @@
 		
 		<Texture name="Lord_1" file="original/Lord_Order.tga" /> 		
 		<Texture name="Lord_2" file="original/Lord_Destro.tga" /> 				
+		<Texture name="Progress_Bar" file="original/Progress_bar.tga" /> 						
+		
 		
 		<Texture name="Frame_1" file="original/Frame_1.tga" /> 		
 		<Texture name="Flame_1" file="original/Flame_frame.tga" /> 			
@@ -259,6 +261,112 @@
 				</Windows>		 				 
 			</Window>	
 
+	<Window name="RoR_SoR_PairingTemplate" layer="default" movable="false" popable="true" sticky="false" handleinput="true">
+					<Size><AbsPoint x="300" y="95" /></Size>
+					<Anchors><Anchor point="top" relativePoint="top" relativeTo="$parent"><AbsPoint x="0" y="15" /></Anchor></Anchors>
+					<EventHandlers></EventHandlers> 		
+
+					<Windows>
+						<Window name="$parentBackground2" inherits="EA_Window_DefaultTooltipBackground" handleinput="false" layer="background"> 
+						<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parent"><AbsPoint x="0" y="16" /></Anchor><Anchor point="bottomright" relativePoint="bottomright" relativeTo="$parent"><AbsPoint x="0" y="-15" /></Anchor></Anchors>
+						</Window>
+						
+								<DynamicImage name="$parentBG" texture="Fort_10" handleinput="false" popable="false"  id="1" textureScale="1" layer="default">
+								<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parent"><AbsPoint x="2" y="18" /></Anchor><Anchor point="bottomright" relativePoint="bottomright" relativeTo="$parent"><AbsPoint x="-2" y="-17" /></Anchor></Anchors>
+								</DynamicImage>	
+						
+							<Window name="$parentBanner" handleinput="false" layer="secondary"> 
+							<Anchors><Anchor point="top" relativePoint="top" relativeTo="$parent"><AbsPoint x="0" y="0" /></Anchor></Anchors>
+							<Size><AbsPoint x="300" y="40" /></Size>
+							<Windows>
+						
+								<DynamicImage name="$parentMid"  texture="Banner_Mid_2" layer="background"  texturescale="0.8" handleinput="false" >
+								<Size><AbsPoint x="234" y="37" /></Size>
+								<Anchors><Anchor point="top" relativePoint="top" relativeTo="$parent"><AbsPoint x="0" y="2" /></Anchor></Anchors>
+								</DynamicImage>          											
+
+								<DynamicImage name="$parentLeft"  texture="Banner_Left_2" layer="background"  texturescale="0.8" handleinput="false" >
+								<Size><AbsPoint x="32" y="37" /></Size>
+								<Anchors><Anchor point="topleft" relativePoint="topright" relativeTo="$parentMid"><AbsPoint x="0" y="0" /></Anchor></Anchors>
+								</DynamicImage>       
+
+								<DynamicImage name="$parentRight"  texture="Banner_Right_2" layer="background"  texturescale="0.8" handleinput="false" >
+								<Size><AbsPoint x="32" y="37" /></Size>
+								<Anchors><Anchor point="topright" relativePoint="topleft" relativeTo="$parentMid"><AbsPoint x="0" y="0" /></Anchor></Anchors>
+								</DynamicImage> 
+								
+																	
+<!-- 	<FullResizeImage name="$parentBG" inherits="EA_FullResizeImage_TintableSolidBackground" layer="default" alpha="0.3" handleinput="false">        
+	<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parent"><AbsPoint x="0" y="0"/></Anchor><Anchor point="bottomright" relativePoint="bottomright" relativeTo="$parent"><AbsPoint x="0" y="0"/></Anchor></Anchors>
+	<TintColor r="90" g="90" b="255" a="0.3"/>						
+	</FullResizeImage>			 -->						
+							</Windows>			
+						</Window>
+
+					<Window name="$parentInfo" handleinput="false" alpha="0.6" layer="secondary"> 
+							<Anchors><Anchor point="center" relativePoint="center" relativeTo="$parent"><AbsPoint x="0" y="3" /></Anchor></Anchors>
+							<Size><AbsPoint x="300" y="60" /></Size>
+							<Windows>
+	
+						<DynamicImage name="$parentZone1" texture="EA_Campaign01_d5" slice="Zone-CONTESTED" textureScale="0.4" handleinput="false" layer="overlay">
+						<Size><AbsPoint x="27" y="27" /></Size>
+						<Anchors><Anchor point="center" relativePoint="center" relativeTo="$parent"><AbsPoint x="0" y="3" /></Anchor></Anchors>
+						</DynamicImage>
+
+						<DynamicImage name="$parentZone2" texture="EA_Campaign01_d5" slice="Zone-CONTESTED" textureScale="0.4" handleinput="false" layer="overlay">
+						<Size><AbsPoint x="27" y="27" /></Size>
+						<Anchors><Anchor point="right" relativePoint="left" relativeTo="$parentZone1"><AbsPoint x="25" y="0" /></Anchor></Anchors>
+						</DynamicImage>
+						
+						<DynamicImage name="$parentZone3" texture="EA_Campaign01_d5" slice="Zone-CONTESTED" textureScale="0.4" handleinput="false" layer="overlay">
+						<Size><AbsPoint x="27" y="27" /></Size>
+						<Anchors><Anchor point="left" relativePoint="right" relativeTo="$parentZone1"><AbsPoint x="-25" y="0" /></Anchor></Anchors>
+						</DynamicImage>						
+				
+						<DynamicImage name="$parentFort1" texture="EA_Campaign01_d5" slice="Fort-CONTESTED" textureScale="0.6" handleinput="false" layer="overlay">
+						<Size><AbsPoint x="30" y="33" /></Size>
+						<Anchors><Anchor point="left" relativePoint="right" relativeTo="$parentZone3"><AbsPoint x="-25" y="0" /></Anchor></Anchors>
+						</DynamicImage>									
+	
+						<DynamicImage name="$parentFort2" texture="EA_Campaign01_d5" slice="Fort-CONTESTED" textureScale="0.6" handleinput="false" layer="overlay">
+						<Size><AbsPoint x="30" y="33" /></Size>
+						<Anchors><Anchor point="right" relativePoint="left" relativeTo="$parentZone2"><AbsPoint x="25" y="0" /></Anchor></Anchors>
+						</DynamicImage>		
+						
+							</Windows>			
+						</Window>						
+								<Label name="$parent_BannerLabel" font="font_default_text_small" autoresize="true" textalign="center"  layer="overlay" popable="false" textAutoFitMinScale="0.3" handleinput="false">	
+								<Size><AbsPoint x="230" y="18" /></Size>
+								<Anchors><Anchor point="center" relativePoint="center" relativeTo="$parentBannerMid"><AbsPoint x="0" y="0" /></Anchor></Anchors>
+								<Color r="255" g="255" b="255" />
+								</Label>	
+
+								<Label name="$parent_BannerLabel_BG" font="font_default_text_small" autoresize="true" textalign="center"  layer="secondary" popable="false" textAutoFitMinScale="0.3" handleinput="false">	
+								<Size><AbsPoint x="230" y="18" /></Size>
+								<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parent_BannerLabel"><AbsPoint x="0" y="1.5" /></Anchor></Anchors>
+								<Color r="0" g="0" b="0" a="0.8"/>
+								</Label>					
+
+						<Label name="$parent_STATUS" font="font_default_text_small" autoresize="true" textalign="center" wordwrap="true" layer="overlay" popable="false" handleinput="true">	
+						<Size><AbsPoint x="300" y="25" /></Size>
+						<EventHandlers><EventHandler event="OnHyperLinkLButtonUp" function="EA_ChatWindow.OnHyperLinkLButtonUp" /><EventHandler event="OnHyperLinkRButtonUp" function="EA_ChatWindow.OnHyperLinkRButtonUp" /></EventHandlers>
+						<Anchors><Anchor point="center" relativePoint="center" relativeTo="$parent"><AbsPoint x="0" y="5" /></Anchor></Anchors>
+						<Color r="250" g="250" b="200" />
+						</Label>
+						
+						<Label name="$parent_STATUS_BG" font="font_default_text_small" autoresize="true" textalign="center" wordwrap="true" layer="default" popable="false" handleinput="false">	
+						<Size><AbsPoint x="300" y="25" /></Size>
+						<Anchors><Anchor point="topleft" relativePoint="topleft" relativeTo="$parent_STATUS"><AbsPoint x="0" y="2" /></Anchor></Anchors>
+						<Color r="0" g="0" b="0" a="0"/>
+						</Label>					
+
+		
+						
+		</Windows>		 				 
+	</Window>	  
+
+
+
  	<Window name="RoR_SoR_CityTemplate" layer="default" movable="false" popable="true" sticky="false" handleinput="true">
 					<Size><AbsPoint x="300" y="140" /></Size>
 					<Anchors><Anchor point="top" relativePoint="top" relativeTo="$parent"><AbsPoint x="0" y="15" /></Anchor></Anchors>
@@ -339,7 +447,7 @@
                     </Size>
                     <Anchors>
                         <Anchor point="top" relativePoint="top" relativeTo="$parent">
-                            <AbsPoint x="5" y="15" />
+                            <AbsPoint x="5" y="21" />
                         </Anchor>
                     </Anchors>
                 </DynamicImage>		

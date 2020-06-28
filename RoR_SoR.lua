@@ -1,5 +1,5 @@
 if not RoR_SoR then RoR_SoR= {} end
-local version = 120
+local version = 121
 local ZoneLockTimer = 10
 local RoR_Window_Scale
 
@@ -22,6 +22,7 @@ RoR_SoR.InvFortColors = {{r=155,g=155,b=155},{r=255,g=25,b=25},{r=75,g=75,b=255}
 RoR_SoR.CappingRealmColors = {{r=255,g=255,b=255},{r=255,g=105,b=105},{r=107,g=191,b=255}}
 RoR_SoR.T4_ActiveZones = {[3]=1,[5]=2,[9]=3,[103]=1,[105]=2,[109]=3,[209]=3,[205]=2,[203]=1}
 RoR_SoR.Forts = {[4]=2,[10]=1,[104]=2,[110]=1,[204]=2,[210]=1}
+RoR_SoR.FortBG = {{10,4},{110,104},{210,204}}
 RoR_SoR.City = {[161]=2,[162]=1}
 RoR_SoR.KeepLord = {[1] = "SoR_LordIcon",[2] = "SoR_LordIcon"}
 RoR_SoR.FortLord = {[1] = "Lord_1",[2] = "Lord_2"}
@@ -31,6 +32,7 @@ RoR_SoR.ParingPortrait = {[1] = "PairingElvesSelected",[2] = "PairingEvCSelected
 RoR_SoR.KeepStatus = {}
 RoR_SoR.ZoneStatus = {}
 RoR_SoR.KeepProgress = {[1]={},[2]={}}
+RoR_SoR.Pairings = {[1]={},[2]={},[3]={}}
 
 RoR_SoR.TextLock = towstring(GetStringFromTable("MapSystem", StringTables.MapSystem.TEXT_CAMPAIGN_PAIRING_LOCKED ) )
 RoR_SoR.TextZoneLocked =	towstring(GetStringFromTable("Hardcoded", 1268))
@@ -39,6 +41,21 @@ RoR_SoR.TextTaken = towstring(GetStringFromTable("Hardcoded", 274))
 RoR_SoR.TextNeutral = towstring(GetStringFromTable("Default", StringTables.Default.LABEL_UNCONTROLLED ) )
 RoR_SoR.TextOrder = towstring(GetStringFromTable("Default", StringTables.Default.LABEL_UNCONTROLLED ) )
 RoR_SoR.TextDestro = towstring(GetStringFromTable("Default", StringTables.Default.LABEL_ORDER_CONTROLLED ) )
+
+
+RoR_SoR.PairingIconSliceNames = {}
+RoR_SoR.PairingIconSliceNames[GameData.Pairing.GREENSKIN_DWARVES] = {}
+RoR_SoR.PairingIconSliceNames[GameData.Pairing.GREENSKIN_DWARVES][GameData.Realm.ORDER] = "Order-Dwarf"
+RoR_SoR.PairingIconSliceNames[GameData.Pairing.GREENSKIN_DWARVES][GameData.Realm.DESTRUCTION] = "Dest-Greenskin"
+RoR_SoR.PairingIconSliceNames[GameData.Pairing.GREENSKIN_DWARVES][GameData.Realm.NONE] = "CONTESTED"
+RoR_SoR.PairingIconSliceNames[GameData.Pairing.EMPIRE_CHAOS] = {}
+RoR_SoR.PairingIconSliceNames[GameData.Pairing.EMPIRE_CHAOS][GameData.Realm.ORDER] = "Order-Empire"
+RoR_SoR.PairingIconSliceNames[GameData.Pairing.EMPIRE_CHAOS][GameData.Realm.DESTRUCTION] = "Dest-Chaos"
+RoR_SoR.PairingIconSliceNames[GameData.Pairing.EMPIRE_CHAOS][GameData.Realm.NONE] = "CONTESTED"
+RoR_SoR.PairingIconSliceNames[GameData.Pairing.ELVES_DARKELVES] = {}
+RoR_SoR.PairingIconSliceNames[GameData.Pairing.ELVES_DARKELVES][GameData.Realm.ORDER] = "Order-HighElf"
+RoR_SoR.PairingIconSliceNames[GameData.Pairing.ELVES_DARKELVES][GameData.Realm.DESTRUCTION] = "Dest-DarkElf"
+RoR_SoR.PairingIconSliceNames[GameData.Pairing.ELVES_DARKELVES][GameData.Realm.NONE] = "CONTESTED"
 
 
 function RoR_SoR.OnInitialize()
@@ -130,7 +147,7 @@ LogDisplaySetFilterState(siegeWindow, "Chat", 65, false)
 
 
 RoR_SoR.stateMachineName = "RoR_SoR"
-RoR_SoR.state = {[SEND_BEGIN] = { handler=nil,time=RoR_SoR.StateTimer,nextState=SEND_FINISH } , [SEND_FINISH] = { handler=RoR_SoR.CheckCity,time=RoR_SoR.StateTimer,nextState=SEND_BEGIN, } , }
+RoR_SoR.state = {[SEND_BEGIN] = { handler=nil,time=RoR_SoR.StateTimer,nextState=SEND_FINISH } , [SEND_FINISH] = { handler=RoR_SoR.CheckCampaign,time=RoR_SoR.StateTimer,nextState=SEND_BEGIN, } , }
 RoR_SoR.StartMachine()
 
 
@@ -143,33 +160,50 @@ function RoR_SoR.StartMachine()
 	TimedStateMachineManager.AddStateMachine( RoR_SoR.stateMachineName, stateMachine )
 end
 
-function RoR_SoR.CheckCity()
---/script RoR_SoR.SET_CITY(StringSplit(tostring("SoR_C:162:1:10:8:2:100:3"),":"))
-local SiegedRealm = 0
-local cityData = {}
-cityData[GameData.CityId.EMPIRE] = GetCampaignCityData(GameData.CityId.EMPIRE)
-cityData[GameData.CityId.CHAOS] = GetCampaignCityData(GameData.CityId.CHAOS)
-if cityData[GameData.CityId.EMPIRE].controllingRealm ~= cityData[GameData.CityId.EMPIRE].initialRealm then 
-	local SiegeData = RoR_CitySiege.GetCity(GameData.CityId.EMPIRE)
-	local CityRank = GetCityRatingForCityId(GameData.CityId.EMPIRE)	
-	if SiegeData == nil then return end
-	
-	local SoR_CITY_SPLIT_TEXT_STREAM = StringSplit(tostring("SoR_C:162:"..tostring(cityData[GameData.CityId.EMPIRE].cityState)..":"..tostring(SiegeData.instanceCount)..":"..tostring(SiegeData.destroWins)..":"..tostring(SiegeData.orderWins)..":"..tostring(SiegeData.timeLeft))..":"..tostring(CityRank), ":")
-	RoR_SoR.SET_CITY(SoR_CITY_SPLIT_TEXT_STREAM)
-	SiegedRealm = 1 
-	end
---if cityData[GameData.CityId.CHAOS].controllingRealm == 0 then
-if cityData[GameData.CityId.CHAOS].controllingRealm ~= cityData[GameData.CityId.CHAOS].initialRealm then
-	local SiegeData = RoR_CitySiege.GetCity(GameData.CityId.CHAOS)
-	local CityRank = GetCityRatingForCityId(GameData.CityId.CHAOS)
-	if SiegeData == nil then return end
+function RoR_SoR.CheckCampaign()
+--if WindowGetShowing("RoR_SoR_Main_Window") or RoR_SoR.Settings.Enabled == false then return end
+
+if RoR_SoR.Settings.ShowPairings == true then
+	for k,v in pairs(RoR_SoR.Forts) do 
+	local CampaignData = GetCampaignZoneData(k) 
+		if CampaignData.controllingRealm ~= 0 and CampaignData.controllingRealm ~= CampaignData.initialRealm then 
+	--	RoR_SoR.Pairings[CampaignData.pairingId-1].Locked = true
+	--	RoR_SoR.Pairings[CampaignData.pairingId-1].Owner = CampaignData.controllingRealm
 		
-	local SoR_CITY_SPLIT_TEXT_STREAM = StringSplit(tostring("SoR_C:161:"..tostring(cityData[GameData.CityId.CHAOS].cityState)..":"..tostring(SiegeData.instanceCount)..":"..tostring(SiegeData.destroWins)..":"..tostring(SiegeData.orderWins)..":"..tostring(SiegeData.timeLeft))..":"..tostring(CityRank), ":")
-	RoR_SoR.SET_CITY(SoR_CITY_SPLIT_TEXT_STREAM)
-	SiegedRealm = 2 
+		RoR_SoR.SET_PAIRINGS("SoR_:"..tostring(CampaignData.pairingId)..":"..tostring(CampaignData.controllingRealm))
+			--d(towstring(GetStringFromTable("MapSystem",CampaignData.pairingId-1)..L" is locked")) 
+		end 
 	end
 end
 
+
+if RoR_SoR.Settings.ShowCity == true then
+	--/script RoR_SoR.SET_CITY(StringSplit(tostring("SoR_C:162:1:10:8:2:100:3"),":"))
+	local SiegedRealm = 0
+	local cityData = {}
+	cityData[GameData.CityId.EMPIRE] = GetCampaignCityData(GameData.CityId.EMPIRE)
+	cityData[GameData.CityId.CHAOS] = GetCampaignCityData(GameData.CityId.CHAOS)
+	if cityData[GameData.CityId.EMPIRE].controllingRealm ~= cityData[GameData.CityId.EMPIRE].initialRealm then 
+		local SiegeData = RoR_CitySiege.GetCity(GameData.CityId.EMPIRE)
+		local CityRank = GetCityRatingForCityId(GameData.CityId.EMPIRE)	
+		if SiegeData == nil then return end
+		
+		local SoR_CITY_SPLIT_TEXT_STREAM = StringSplit(tostring("SoR_C:162:"..tostring(cityData[GameData.CityId.EMPIRE].cityState)..":"..tostring(SiegeData.instanceCount)..":"..tostring(SiegeData.destroWins)..":"..tostring(SiegeData.orderWins)..":"..tostring(SiegeData.timeLeft))..":"..tostring(CityRank), ":")
+		RoR_SoR.SET_CITY(SoR_CITY_SPLIT_TEXT_STREAM)
+		SiegedRealm = 1 
+		end
+	--if cityData[GameData.CityId.CHAOS].controllingRealm == 0 then
+	if cityData[GameData.CityId.CHAOS].controllingRealm ~= cityData[GameData.CityId.CHAOS].initialRealm then
+		local SiegeData = RoR_CitySiege.GetCity(GameData.CityId.CHAOS)
+		local CityRank = GetCityRatingForCityId(GameData.CityId.CHAOS)
+		if SiegeData == nil then return end
+			
+		local SoR_CITY_SPLIT_TEXT_STREAM = StringSplit(tostring("SoR_C:161:"..tostring(cityData[GameData.CityId.CHAOS].cityState)..":"..tostring(SiegeData.instanceCount)..":"..tostring(SiegeData.destroWins)..":"..tostring(SiegeData.orderWins)..":"..tostring(SiegeData.timeLeft))..":"..tostring(CityRank), ":")
+		RoR_SoR.SET_CITY(SoR_CITY_SPLIT_TEXT_STREAM)
+		SiegedRealm = 2 
+		end
+	end
+end
 
 function RoR_SoR.UpdateCardRewards(...)
 d(...)
@@ -349,6 +383,53 @@ local text = towstring(text)
 			end
 		
 end
+
+function RoR_SoR.SET_PAIRINGS(Input)
+	local SoR_PAIRING_SPLIT_TEXT_STREAM = Input
+
+	if type(SoR_PAIRING_SPLIT_TEXT_STREAM)~= "table" then
+		SoR_PAIRING_SPLIT_TEXT_STREAM = StringSplit(SoR_PAIRING_SPLIT_TEXT_STREAM,":")
+	end	
+		
+	local Window_Name = "P_"..tostring(SoR_PAIRING_SPLIT_TEXT_STREAM[2])
+	local Pairing_ID = tonumber(SoR_PAIRING_SPLIT_TEXT_STREAM[2])
+	local Owning_Realm = tonumber(SoR_PAIRING_SPLIT_TEXT_STREAM[3])
+	
+	if DoesWindowExist("SoR_"..Window_Name) then
+
+
+	RoR_SoR.ZoneTimer[Window_Name] = ZoneLockTimer
+	
+	WindowClearAnchors("SoR_"..Window_Name.."Banner")
+	WindowAddAnchor("SoR_"..Window_Name.."Banner","top", "SoR_"..Window_Name, "top", 0,RoR_SoR.GetBanner())
+	
+	LabelSetText("SoR_"..Window_Name.."_BannerLabel",towstring(GetStringFromTable("MapSystem",Pairing_ID-1)))	
+	LabelSetText("SoR_"..Window_Name.."_BannerLabel_BG",towstring(GetStringFromTable("MapSystem",Pairing_ID-1)))
+
+local Color = RoR_SoR.RealmColors[Owning_Realm+1]
+
+	LabelSetText("SoR_"..Window_Name.."_STATUS",L"Pairing Controlled By: "..towstring(CreateHyperLink(L"0",towstring(GetRealmName(Owning_Realm)), {Color.r,Color.g,Color.b}, {} )))		
+	LabelSetText("SoR_"..Window_Name.."_STATUS_BG",L"Pairing Controlled By: "..towstring(GetRealmName(Owning_Realm)))	
+		
+	local BannerW,_ = LabelGetTextDimensions("SoR_"..Window_Name.."_BannerLabel")
+	WindowSetDimensions( "SoR_"..Window_Name.."BannerMid", BannerW, 40 )			
+		
+	for i=1,3 do	
+		DynamicImageSetTextureSlice("SoR_"..Window_Name.."InfoZone"..i,"Zone-"..tostring(RoR_SoR.PairingIconSliceNames[Pairing_ID][Owning_Realm]))	
+	end
+		DynamicImageSetTextureSlice("SoR_"..Window_Name.."InfoFort1","Fort-"..tostring(RoR_SoR.PairingIconSliceNames[Pairing_ID][Owning_Realm]))	
+		DynamicImageSetTextureSlice("SoR_"..Window_Name.."InfoFort2","Fort-"..tostring(RoR_SoR.PairingIconSliceNames[Pairing_ID][Owning_Realm]))
+		DynamicImageSetTexture( "SoR_"..Window_Name.."BG", "Fort_"..RoR_SoR.FortBG[Pairing_ID][Owning_Realm],0,0 )	
+		WindowSetTintColor("SoR_"..Window_Name.."Background2Border",Color.r,Color.g,Color.b)
+	else			
+	CreateWindowFromTemplate("SoR_"..Window_Name, "RoR_SoR_PairingTemplate", "Root")
+	RoR_SoR.OpenZones[Window_Name] =  tonumber(6)
+	RoR_SoR.Timers[Window_Name] = {}
+	RoR_SoR.SET_PAIRINGS(SoR_PAIRING_SPLIT_TEXT_STREAM)
+	end	
+	RoR_SoR.Restack()	
+end
+
 
 function RoR_SoR.SET_CITY(Input)
 --SoR_F:10:2:85:BO 1:1:BO 2:2:BO 3:1:BO 4:2:BO 5:2:100
@@ -632,17 +713,19 @@ function  RoR_SoR.Restack()
 			table.sort(RoR_SoR.StackSort, CompareEntry)			
 		end
 		
-		for k,v in ipairs(RoR_SoR.StackSort) do
+		local TotalHeight = 0
+		for k,v in ipairs(RoR_SoR.StackSort) do		
 		local width,height = WindowGetDimensions( "SoR_"..v.Zone)	
 		local WndScale = WindowGetScale("SoR_"..v.Zone)
 		width = width*WndScale
 		height = ((height+RoR_SoR.Settings.Offset)*WndScale)/Inteface_Scale
+		TotalHeight = TotalHeight + height
 			WindowClearAnchors( "SoR_"..v.Zone )
 			if RoR_SoR.Settings.StackDir == 1 then
-			WindowAddAnchor( "SoR_"..v.Zone , "bottom", "RoR_SoR_Main_Window", "top", 0,(0-(height))+(height*k))			
+			WindowAddAnchor( "SoR_"..v.Zone , "bottom", "RoR_SoR_Main_Window", "top", 0,(0-(height))+(TotalHeight))			
 			--	WindowAddAnchor( "SoR_"..v.Zone , "bottom", "RoR_SoR_Main_Window", "top", 0,((175*tonumber(k-1))*RoR_Window_Scale)/(uiScale/ResolutionScale/Inteface_Scale))
 			elseif  RoR_SoR.Settings.StackDir == 2 then
-			WindowAddAnchor( "SoR_"..v.Zone , "top", "RoR_SoR_Main_Window", "bottom", 0,height-(height*k))				
+			WindowAddAnchor( "SoR_"..v.Zone , "top", "RoR_SoR_Main_Window", "bottom", 0,height-(TotalHeight))				
 			--	WindowAddAnchor( "SoR_"..v.Zone , "top", "RoR_SoR_Main_Window", "bottom", 0,0-((((175*tonumber(k-1)))*RoR_Window_Scale)/(uiScale/ResolutionScale/Inteface_Scale)))
 			end
 		end
@@ -1938,10 +2021,22 @@ local function MakeCallBack( SelectedOption )
    EA_Window_ContextMenu.AddMenuItem( L"<icon00058> Tier 4" ,MakeCallBack(2), false, true )
  end
  
-   if RoR_SoR.Settings.ShowForts == true then
+ if RoR_SoR.Settings.ShowForts == true then
   EA_Window_ContextMenu.AddMenuItem( L"<icon00057> Forts" , MakeCallBack(6), false, true )
   else
    EA_Window_ContextMenu.AddMenuItem( L"<icon00058> Forts" ,MakeCallBack(6), false, true )
+ end
+ 
+  if RoR_SoR.Settings.ShowCity == true then
+	EA_Window_ContextMenu.AddMenuItem( L"<icon00057> Cities" , MakeCallBack(12), false, true )
+  else
+   EA_Window_ContextMenu.AddMenuItem( L"<icon00058> Cities" ,MakeCallBack(12), false, true )
+ end
+
+  if RoR_SoR.Settings.ShowPairings == true then
+	EA_Window_ContextMenu.AddMenuItem( L"<icon00057> Locked Pairings" , MakeCallBack(13), false, true )
+  else
+   EA_Window_ContextMenu.AddMenuItem( L"<icon00058> Locked Pairings" ,MakeCallBack(13), false, true )
  end
  
     if RoR_SoR.Settings.OnlyActive == true then
@@ -2006,6 +2101,8 @@ function RoR_SoR.ToggleShow(SelectedOption)
 	elseif SelectedOption == 9 then RoR_SoR.Settings.OnlyActive	 = not RoR_SoR.Settings.OnlyActive ; RoR_SoR.ClearTier(0)
 	elseif SelectedOption == 10 then RoR_SoR.Settings.ShowBONames	 = not RoR_SoR.Settings.ShowBONames
 	elseif SelectedOption == 11 then RoR_SoR.Settings.ShowUnclaimed	 = not RoR_SoR.Settings.ShowUnclaimed	
+	elseif SelectedOption == 12 then RoR_SoR.Settings.ShowCity	 = not RoR_SoR.Settings.ShowCity	
+	elseif SelectedOption == 13 then RoR_SoR.Settings.ShowPairings	 = not RoR_SoR.Settings.ShowPairings	
 	end
 	RoR_SoR.Enable()
 	return
@@ -2292,6 +2389,8 @@ DrawBanner = true,
 OnlyActive = false,
 ShowBONames = true,
 ShowUnclaimed = true,
+ShowPairings = true,
+ShowCity = true,
 Version = version
 }
 WindowSetScale("RoR_SoR_Main_Window",0.753)
