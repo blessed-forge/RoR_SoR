@@ -1,5 +1,5 @@
 if not RoR_SoR then RoR_SoR= {} end
-local version = 121
+local version = 122
 local ZoneLockTimer = 10
 local RoR_Window_Scale
 
@@ -10,12 +10,13 @@ local c_DEFAULT_FADEOUT_TIMER = 0.3
 local SEND_BEGIN = 1
 local SEND_FINISH = 2
 
+local HasReloaded = false
+
 Popper = {m_HideCountdown = c_DEFAULT_HIDE_TIMER, m_IsShowing = false,}
 
 RoR_SoR.StateTimer = 2
 RoR_SoR.DebugKeep = false
 RoR_SoR.DebugBO = false
---(wstring.match(wstring.gsub(wstring.gsub(wstring.gsub(L"Dont Feel Nuthing",L" of ", L"O"), L"%s",L""), L"%l*", L""), L"([^^]+)^?.*"))  --This is for Shortening Guildnames
 RoR_SoR.RealmColors = {{r=155,g=155,b=155},{r=107,g=191,b=255},{r=255,g=105,b=105},{r=75,g=75,b=255},{r=255,g=25,b=25}}
 RoR_SoR.FortColors = {{r=155,g=155,b=155},{r=75,g=75,b=255},{r=255,g=25,b=25}}
 RoR_SoR.InvFortColors = {{r=155,g=155,b=155},{r=255,g=25,b=25},{r=75,g=75,b=255}}
@@ -24,6 +25,7 @@ RoR_SoR.T4_ActiveZones = {[3]=1,[5]=2,[9]=3,[103]=1,[105]=2,[109]=3,[209]=3,[205
 RoR_SoR.Forts = {[4]=2,[10]=1,[104]=2,[110]=1,[204]=2,[210]=1}
 RoR_SoR.FortBG = {{10,4},{110,104},{210,204}}
 RoR_SoR.City = {[161]=2,[162]=1}
+RoR_SoR.CityCampaign = {[161]=4,[162]=3}
 RoR_SoR.KeepLord = {[1] = "SoR_LordIcon",[2] = "SoR_LordIcon"}
 RoR_SoR.FortLord = {[1] = "Lord_1",[2] = "Lord_2"}
 RoR_SoR.ZoneNames = {[1]={1,7},[2]={2,8},[3]={3,3},[4]={4,4},[5]={5,5},[6]={6,11},[7]={1,7},[8]={2,8},[9]={9,9},[10]={10,10},[11]={6,11},[100]={100,106},[101]={107,101},[102]={102,108},[103]={103,103},[104]={104,108},[105]={105,105},[106]={100,106},[107]={107,101},[108]={102,108},[109]={109,109},[110]={110,110},[200]={200,206},[201]={207,201},[202]={202,208},[203]={203,203},[204]={204,204},[205]={205,205},[206]={200,206},[207]={207,201},[208]={202,208},[209]={209,209},[210]={210,210}}
@@ -32,7 +34,12 @@ RoR_SoR.ParingPortrait = {[1] = "PairingElvesSelected",[2] = "PairingEvCSelected
 RoR_SoR.KeepStatus = {}
 RoR_SoR.ZoneStatus = {}
 RoR_SoR.KeepProgress = {[1]={},[2]={}}
-RoR_SoR.Pairings = {[1]={},[2]={},[3]={}}
+RoR_SoR.Pairings = {[1]={},[2]={},[3]={},[161]={},[162]={}}
+
+if not RoR_SoR.City_Status then RoR_SoR.City_Status = {} end
+
+RoR_SoR.SafeKeep = {}
+
 
 RoR_SoR.TextLock = towstring(GetStringFromTable("MapSystem", StringTables.MapSystem.TEXT_CAMPAIGN_PAIRING_LOCKED ) )
 RoR_SoR.TextZoneLocked =	towstring(GetStringFromTable("Hardcoded", 1268))
@@ -150,6 +157,16 @@ RoR_SoR.stateMachineName = "RoR_SoR"
 RoR_SoR.state = {[SEND_BEGIN] = { handler=nil,time=RoR_SoR.StateTimer,nextState=SEND_FINISH } , [SEND_FINISH] = { handler=RoR_SoR.CheckCampaign,time=RoR_SoR.StateTimer,nextState=SEND_BEGIN, } , }
 RoR_SoR.StartMachine()
 
+--if the RoR_CitySiege table can't be found due to a reloadui, load the current city-rating timer from the backup save and set flag HasRealoded (will persist untill it get response from valid RoR_CitySiege table)
+if RoR_CitySiege.GetCity(GameData.CityId.EMPIRE) == nil or RoR_CitySiege.GetCity(GameData.CityId.CHAOS) == nil then
+	RoR_SoR.Pairings[162].Timer = RoR_SoR.City_Status[GameData.CityId.EMPIRE].ratingTimer
+	RoR_SoR.Pairings[161].Timer = RoR_SoR.City_Status[GameData.CityId.CHAOS].ratingTimer
+	
+	RoR_SoR.Pairings[162].Timer2 = RoR_SoR.City_Status[GameData.CityId.EMPIRE].timeLeft
+	RoR_SoR.Pairings[161].Timer2 = RoR_SoR.City_Status[GameData.CityId.CHAOS].timeLeft
+	
+	HasReloaded = true
+end
 
 RoR_SoR.Restack()
 end
@@ -166,42 +183,52 @@ function RoR_SoR.CheckCampaign()
 if RoR_SoR.Settings.ShowPairings == true then
 	for k,v in pairs(RoR_SoR.Forts) do 
 	local CampaignData = GetCampaignZoneData(k) 
-		if CampaignData.controllingRealm ~= 0 and CampaignData.controllingRealm ~= CampaignData.initialRealm then 
-	--	RoR_SoR.Pairings[CampaignData.pairingId-1].Locked = true
-	--	RoR_SoR.Pairings[CampaignData.pairingId-1].Owner = CampaignData.controllingRealm
-		
+		if CampaignData.controllingRealm ~= 0 and CampaignData.controllingRealm ~= CampaignData.initialRealm then 	
 		RoR_SoR.SET_PAIRINGS("SoR_:"..tostring(CampaignData.pairingId)..":"..tostring(CampaignData.controllingRealm))
-			--d(towstring(GetStringFromTable("MapSystem",CampaignData.pairingId-1)..L" is locked")) 
 		end 
-	end
+	end	
 end
 
 
-if RoR_SoR.Settings.ShowCity == true then
+if RoR_SoR.Settings.ShowCity == true then --contested City siege
 	--/script RoR_SoR.SET_CITY(StringSplit(tostring("SoR_C:162:1:10:8:2:100:3"),":"))
 	local SiegedRealm = 0
 	local cityData = {}
 	cityData[GameData.CityId.EMPIRE] = GetCampaignCityData(GameData.CityId.EMPIRE)
 	cityData[GameData.CityId.CHAOS] = GetCampaignCityData(GameData.CityId.CHAOS)
 	if cityData[GameData.CityId.EMPIRE].controllingRealm ~= cityData[GameData.CityId.EMPIRE].initialRealm then 
-		local SiegeData = RoR_CitySiege.GetCity(GameData.CityId.EMPIRE)
+		local SiegeData = RoR_SoR.City_Status[GameData.CityId.EMPIRE]
 		local CityRank = GetCityRatingForCityId(GameData.CityId.EMPIRE)	
-		if SiegeData == nil then return end
+		if SiegeData ~= nil then
 		
 		local SoR_CITY_SPLIT_TEXT_STREAM = StringSplit(tostring("SoR_C:162:"..tostring(cityData[GameData.CityId.EMPIRE].cityState)..":"..tostring(SiegeData.instanceCount)..":"..tostring(SiegeData.destroWins)..":"..tostring(SiegeData.orderWins)..":"..tostring(SiegeData.timeLeft))..":"..tostring(CityRank), ":")
 		RoR_SoR.SET_CITY(SoR_CITY_SPLIT_TEXT_STREAM)
 		SiegedRealm = 1 
 		end
+		end
 	--if cityData[GameData.CityId.CHAOS].controllingRealm == 0 then
 	if cityData[GameData.CityId.CHAOS].controllingRealm ~= cityData[GameData.CityId.CHAOS].initialRealm then
-		local SiegeData = RoR_CitySiege.GetCity(GameData.CityId.CHAOS)
+		local SiegeData = RoR_SoR.City_Status[GameData.CityId.CHAOS]
 		local CityRank = GetCityRatingForCityId(GameData.CityId.CHAOS)
-		if SiegeData == nil then return end
+		if SiegeData ~= nil then
 			
 		local SoR_CITY_SPLIT_TEXT_STREAM = StringSplit(tostring("SoR_C:161:"..tostring(cityData[GameData.CityId.CHAOS].cityState)..":"..tostring(SiegeData.instanceCount)..":"..tostring(SiegeData.destroWins)..":"..tostring(SiegeData.orderWins)..":"..tostring(SiegeData.timeLeft))..":"..tostring(CityRank), ":")
 		RoR_SoR.SET_CITY(SoR_CITY_SPLIT_TEXT_STREAM)
 		SiegedRealm = 2 
 		end
+		end
+
+	
+	--Normal city status:
+	--Map_ID,Realm_ID,City_ID
+	if not DoesWindowExist("SoR_161") then
+		RoR_SoR.SET_CAMPAIGN("SoR_:161:2:4")
+	end
+	
+	if not DoesWindowExist("SoR_162") then
+		RoR_SoR.SET_CAMPAIGN("SoR_:162:1:3")		
+	end
+	
 	end
 end
 
@@ -285,9 +312,47 @@ return false
 end
 
 function RoR_SoR.Enable()
-SendChatText(L".sorenable",ChatSettings.Channels[0].serverCmd)
+
+if RoR_SoR.Settings.Enabled == true then
+
+local ShowT1 = L""
+local ShowT4 = L""
+local ShowForts = L""
+if RoR_SoR.Settings.ShowT1 == true then ShowT1 = L" T1" end
+if RoR_SoR.Settings.ShowT4 == true then ShowT4 = L" T4" end
+if RoR_SoR.Settings.ShowForts == true then ShowForts = L" Forts" end
+
+SendChatText(L".sorenable"..ShowT1..ShowT4..ShowForts,ChatSettings.Channels[0].serverCmd)
+RoR_SoR.Restack()
+elseif RoR_SoR.Settings.Enabled == false then
+--[[
+local HideT1 = L""
+local HideT4 = L""
+local HideFort = L""
+if RoR_SoR.Settings.ShowT1 == false then HideT1 = L" T1" end
+if RoR_SoR.Settings.ShowT4 == false then HideT4 = L" T4" end
+if RoR_SoR.Settings.ShowFort == false then HideFort = L" Forts" end
+
+SendChatText(L".sordisable"..HideT1..HideT4..HideFort,ChatSettings.Channels[0].serverCmd)
+--]]
+SendChatText(L".sordisable",ChatSettings.Channels[0].serverCmd)
 RoR_SoR.Restack()
 end
+
+end
+
+function RoR_SoR.Disable()
+local HideT1 = L""
+local HideT4 = L""
+local HideForts = L""
+if RoR_SoR.Settings.ShowT1 == false then HideT1 = L" T1" end
+if RoR_SoR.Settings.ShowT4 == false then HideT4 = L" T4" end
+if RoR_SoR.Settings.ShowForts == false then HideForts = L" Forts" end
+SendChatText(L".sordisable"..HideT1..HideT4..HideForts,ChatSettings.Channels[0].serverCmd)
+RoR_SoR.Restack()
+return
+end
+
 
 function RoR_SoR.Text_Stream_Fetch(text)
 local text = towstring(text)
@@ -384,6 +449,81 @@ local text = towstring(text)
 		
 end
 
+
+function RoR_SoR.SET_CAMPAIGN(Input)
+	local SoR_CAMPAIGN_SPLIT_TEXT_STREAM = Input
+
+	if type(SoR_CAMPAIGN_SPLIT_TEXT_STREAM)~= "table" then
+		SoR_CAMPAIGN_SPLIT_TEXT_STREAM = StringSplit(SoR_CAMPAIGN_SPLIT_TEXT_STREAM,":")
+	end	
+		
+	local Window_Name = "P_"..tostring(SoR_CAMPAIGN_SPLIT_TEXT_STREAM[2])
+	local Pairing_ID = tonumber(SoR_CAMPAIGN_SPLIT_TEXT_STREAM[2])
+	local Realm_ID = tonumber(SoR_CAMPAIGN_SPLIT_TEXT_STREAM[3])	
+	local City_ID = tonumber(SoR_CAMPAIGN_SPLIT_TEXT_STREAM[4])
+
+--28800 max timer
+
+	--check for valid RoR_CitySiege table
+	if RoR_CitySiege.GetCity(City_ID) ~= nil then
+			RoR_SoR.City_Status[City_ID] = RoR_CitySiege.GetCity(City_ID) 			
+			RoR_SoR.Pairings[Pairing_ID].Timer = RoR_SoR.City_Status[City_ID].ratingTimer
+			
+		
+			RoR_SoR.Pairings[Pairing_ID].Timer2 = RoR_SoR.City_Status[City_ID].timeLeft
+			--HasReloaded = false
+	else		
+
+	end
+
+	if DoesWindowExist("SoR_"..Window_Name) then
+
+	RoR_SoR.ZoneTimer[Window_Name] = ZoneLockTimer
+	
+	WindowClearAnchors("SoR_"..Window_Name.."Banner")
+	WindowAddAnchor("SoR_"..Window_Name.."Banner","top", "SoR_"..Window_Name, "top", 0,RoR_SoR.GetBanner())
+	
+	LabelSetText("SoR_"..Window_Name.."_BannerLabel",towstring(GetCityName(City_ID)))	
+	LabelSetText("SoR_"..Window_Name.."_BannerLabel_BG",towstring(GetCityName(City_ID)))
+
+	local Color = RoR_SoR.RealmColors[Realm_ID+1]
+	local Sizes = {[true]=15,[false]=0}
+
+	LabelSetText("SoR_"..Window_Name.."Lock_STATUS",TimeUtils.FormatTimeCondensed(RoR_SoR.Pairings[Pairing_ID].Timer))		
+	LabelSetText("SoR_"..Window_Name.."Lock_STATUS_BG",TimeUtils.FormatTimeCondensed(RoR_SoR.Pairings[Pairing_ID].Timer))	
+	
+	LabelSetText("SoR_"..Window_Name.."_TIMER",TimeUtils.FormatTimeCondensed(RoR_SoR.Pairings[Pairing_ID].Timer))
+	LabelSetText("SoR_"..Window_Name.."_TIMER_BG",TimeUtils.FormatTimeCondensed(RoR_SoR.Pairings[Pairing_ID].Timer))		
+
+
+	MapUtils.UpdateCityRatingWindow( City_ID, "SoR_"..Window_Name.."CityRating")
+		
+	WindowSetShowing("SoR_"..Window_Name.."Lock",RoR_SoR.Pairings[Pairing_ID].Timer2 > 0)
+	WindowSetShowing("SoR_"..Window_Name.."_TIMER",RoR_SoR.Pairings[Pairing_ID].Timer > 0)
+	WindowSetShowing("SoR_"..Window_Name.."_TIMER_BG",RoR_SoR.Pairings[Pairing_ID].Timer > 0)
+		
+	--WindowSetDimensions( "SoR_"..Window_Name, 300, 85+Sizes[RoR_SoR.Pairings[Pairing_ID].Timer2 > 0])		
+	WindowSetDimensions( "SoR_"..Window_Name, 300, 85)		
+		
+	local BannerW,_ = LabelGetTextDimensions("SoR_"..Window_Name.."_BannerLabel")
+	WindowSetDimensions( "SoR_"..Window_Name.."BannerMid", BannerW, 40 )			
+		
+	DynamicImageSetTexture( "SoR_"..Window_Name.."BG", "City_"..Pairing_ID, 300, 105 )
+	
+		WindowSetTintColor("SoR_"..Window_Name.."Background2Border",Color.r,Color.g,Color.b)
+		LabelSetTextColor("SoR_"..Window_Name.."_BannerLabel",255,228,65)
+	else			
+	CreateWindowFromTemplate("SoR_"..Window_Name, "RoR_SoR_City_Status_Template", "Root")
+	RoR_SoR.OpenZones[Window_Name] =  tonumber(16)
+	RoR_SoR.Timers[Window_Name] = {}
+	RoR_SoR.SET_CAMPAIGN(SoR_CAMPAIGN_SPLIT_TEXT_STREAM)
+	end	
+	RoR_SoR.Restack()	
+end
+
+
+
+
 function RoR_SoR.SET_PAIRINGS(Input)
 	local SoR_PAIRING_SPLIT_TEXT_STREAM = Input
 
@@ -394,10 +534,15 @@ function RoR_SoR.SET_PAIRINGS(Input)
 	local Window_Name = "P_"..tostring(SoR_PAIRING_SPLIT_TEXT_STREAM[2])
 	local Pairing_ID = tonumber(SoR_PAIRING_SPLIT_TEXT_STREAM[2])
 	local Owning_Realm = tonumber(SoR_PAIRING_SPLIT_TEXT_STREAM[3])
+	local Pairing_Data = GetCampaignPairingData(Pairing_ID)
+
+--28800 max timer
+	RoR_SoR.Pairings[Pairing_ID].Timer = Pairing_Data.captureTimeRemaining
+	
 	
 	if DoesWindowExist("SoR_"..Window_Name) then
 
-
+	local UnlockTimer = RoR_SoR.Pairings[Pairing_ID].Timer
 	RoR_SoR.ZoneTimer[Window_Name] = ZoneLockTimer
 	
 	WindowClearAnchors("SoR_"..Window_Name.."Banner")
@@ -406,10 +551,13 @@ function RoR_SoR.SET_PAIRINGS(Input)
 	LabelSetText("SoR_"..Window_Name.."_BannerLabel",towstring(GetStringFromTable("MapSystem",Pairing_ID-1)))	
 	LabelSetText("SoR_"..Window_Name.."_BannerLabel_BG",towstring(GetStringFromTable("MapSystem",Pairing_ID-1)))
 
-local Color = RoR_SoR.RealmColors[Owning_Realm+1]
+	local Color = RoR_SoR.RealmColors[Owning_Realm+1]
 
 	LabelSetText("SoR_"..Window_Name.."_STATUS",L"Pairing Controlled By: "..towstring(CreateHyperLink(L"0",towstring(GetRealmName(Owning_Realm)), {Color.r,Color.g,Color.b}, {} )))		
 	LabelSetText("SoR_"..Window_Name.."_STATUS_BG",L"Pairing Controlled By: "..towstring(GetRealmName(Owning_Realm)))	
+	
+	LabelSetText("SoR_"..Window_Name.."_TIMER",TimeUtils.FormatClock(UnlockTimer))
+	LabelSetText("SoR_"..Window_Name.."_TIMER_BG",TimeUtils.FormatClock(UnlockTimer))		
 		
 	local BannerW,_ = LabelGetTextDimensions("SoR_"..Window_Name.."_BannerLabel")
 	WindowSetDimensions( "SoR_"..Window_Name.."BannerMid", BannerW, 40 )			
@@ -444,6 +592,20 @@ function RoR_SoR.SET_CITY(Input)
 	local C_OrderWins = tonumber(SoR_FORT_SPLIT_TEXT_STREAM[6])		
 	local C_Timer = tonumber(SoR_FORT_SPLIT_TEXT_STREAM[7])	
 	local C_Rank =  tonumber(SoR_FORT_SPLIT_TEXT_STREAM[8])	
+	local City_ID = RoR_SoR.CityCampaign[tonumber(SoR_FORT_SPLIT_TEXT_STREAM[2])]
+	
+	
+	if RoR_CitySiege.GetCity(City_ID) ~= nil then
+			RoR_SoR.City_Status[City_ID] = RoR_CitySiege.GetCity(City_ID) 			
+			RoR_SoR.Pairings[tonumber(Window_Name)].Timer = RoR_SoR.City_Status[City_ID].ratingTimer			
+			RoR_SoR.Pairings[tonumber(Window_Name)].Timer2 = RoR_SoR.City_Status[City_ID].timeLeft
+		
+			--HasReloaded = false
+	else		
+		--if the RoR_CitySiege table can't be found due to a reloadui, save the current rating timer into the backup save
+
+	end
+	
 	
 	if DoesWindowExist("SoR_"..Window_Name) then
 	
@@ -990,6 +1152,8 @@ function RoR_SoR.SET_KEEP(Input)
 				if KEEP1_Special[1] > 0 and 600 > KEEP1_Special[1] then LabelSetText("SoR_"..Window_Name.."KEEP1SAFETIMER",TimeUtils.FormatTimeCondensed(KEEP1_Special[1]));LabelSetText("SoR_"..Window_Name.."KEEP1SAFETIMERBG",LabelGetText("SoR_"..Window_Name.."KEEP1SAFETIMER")) end
 				if KEEP2_Special[1] > 0 and 600 > KEEP2_Special[1] then LabelSetText("SoR_"..Window_Name.."KEEP2SAFETIMER",TimeUtils.FormatTimeCondensed(KEEP2_Special[1]));LabelSetText("SoR_"..Window_Name.."KEEP2SAFETIMERBG",LabelGetText("SoR_"..Window_Name.."KEEP2SAFETIMER")) end
 		
+				RoR_SoR.SafeKeep[Window_Name] = {[1]=KEEP1_Special[1],[2]=KEEP2_Special[1]}
+		
 				WindowSetShowing("SoR_"..Window_Name.."KEEP1SAFE",KEEP1_Special[1] > 0 and 585 > KEEP1_Special[1])
 				WindowSetShowing("SoR_"..Window_Name.."KEEP2SAFE",KEEP2_Special[1] > 0 and 585 > KEEP2_Special[1])
 				
@@ -1012,14 +1176,33 @@ function RoR_SoR.SET_KEEP(Input)
 			local Claimed_Keep_1 = RoR_SoR.GetKeepClaim2(KEEP1_ID)
 			local Claimed_Keep_2 = RoR_SoR.GetKeepClaim2(KEEP2_ID)
 			
+			local Can_Claim = GuildWindowTabAdmin.GetGuildCommandPermission(SystemData.GuildPermissons.CLAIM_KEEP, GuildWindowTabAdmin.GetLocalMemberTitleNumber())
+			local Guild_Name = towstring(GameData.Guild.m_GuildName) or L""
+			local Claimed_Keep_1_Name = ((towstring(KEEP1_CLAIM) == Guild_Name) and Can_Claim) or false
+			local Claimed_Keep_2_Name = ((towstring(KEEP2_CLAIM) == Guild_Name) and Can_Claim) or false
 
 			WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW1BUTTON",Claimed_Keep_1)
 			WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW2BUTTON",Claimed_Keep_2)		
-			WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW1TEXT",not Claimed_Keep_1)
-			WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW2TEXT",not Claimed_Keep_2)		
-			
+			WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW1TEXT",not Claimed_Keep_1 and not Claimed_Keep_1_Name)
+			WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW2TEXT",not Claimed_Keep_2 and not Claimed_Keep_2_Name)		
+			WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW1TEXT_BG",not Claimed_Keep_1 and not Claimed_Keep_1_Name)
+			WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW2TEXT_BG",not Claimed_Keep_2 and not Claimed_Keep_2_Name)			
+		
+			WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW1BUTTON2",Claimed_Keep_1_Name)
+			WindowSetShowing("SoR_"..Window_Name.."CLAIM_WINDOW2BUTTON2",Claimed_Keep_2_Name)			
+
+	
 			ButtonSetText("SoR_"..Window_Name.."CLAIM_WINDOW1BUTTON",L"[CLAIM KEEP]")
-			ButtonSetText("SoR_"..Window_Name.."CLAIM_WINDOW2BUTTON",L"[CLAIM KEEP]")		
+			ButtonSetText("SoR_"..Window_Name.."CLAIM_WINDOW2BUTTON",L"[CLAIM KEEP]")
+			
+			WindowSetId("SoR_"..Window_Name.."CLAIM_WINDOW1BUTTON2",KEEP1_ID)
+			WindowSetId("SoR_"..Window_Name.."CLAIM_WINDOW2BUTTON2",KEEP2_ID)
+
+			ButtonSetText("SoR_"..Window_Name.."CLAIM_WINDOW1BUTTON2",L"[RELEASE KEEP]")
+			ButtonSetText("SoR_"..Window_Name.."CLAIM_WINDOW2BUTTON2",L"[RELEASE KEEP]")				
+			
+			
+--GameData.Guild.m_GuildName			
 				
 	--Calculate and show AAO and Population	
 
@@ -1482,40 +1665,6 @@ function RoR_SoR.TIMER_UPDATE(elapsedTime)
 					end
 				end
 			
-				--end
-				
-	
-		
-	
---[[	
-		if (Popper.m_HideCountdown >= 0)
-		then
-			Popper.m_HideCountdown = Popper.m_HideCountdown - elapsedTime
-						
-			if (Popper.m_HideCountdown <= 0)
-			then
-				local windowName        = SystemData.MouseOverWindow.name
-				local overSidebarOrChild = false
-			--	while (windowName ~= "Root") do
-					if (windowName:find("SoR_") or WindowGetParent (windowName) == "RoR_SoR_Main_Window" or WindowGetShowing("EA_Window_ContextMenu1") == true)
-					then
-						overSidebarOrChild = true	
-							RoR_SoR.ShowPopper()
-						--break
-					end
-										
-					windowName = WindowGetParent (windowName)
-				--end
-				
-				if (overSidebarOrChild == false)
-				then
-					RoR_SoR.HidePopper ()
-				else
-					Popper.m_HideCountdown = c_DEFAULT_HIDE_TIMER
-				end
-			end
-		end
-	--]]	
 		
 	end	
 
@@ -1532,7 +1681,7 @@ function RoR_SoR.TIMER_UPDATE(elapsedTime)
 	end
 
 
-		RoR_SoR.OnScenario()
+	RoR_SoR.OnScenario()
 
 
 
@@ -1553,10 +1702,81 @@ function RoR_SoR.TIMER_UPDATE(elapsedTime)
 	end
 
 
+	if RoR_SoR.Pairings ~= nil then
+		for k,v in pairs(RoR_SoR.Pairings) do
+			if DoesWindowExist("SoR_P_"..k) then
+				local Window_Name = "P_"..tostring(k)
+				if RoR_SoR.Pairings[k].Timer and RoR_SoR.Pairings[k].Timer > 0 then
+				
+						RoR_SoR.Pairings[k].Timer = RoR_SoR.Pairings[k].Timer - elapsedTime
+						LabelSetText("SoR_"..Window_Name.."_TIMER",TimeUtils.FormatTimeCondensed(RoR_SoR.Pairings[k].Timer))
+						LabelSetText("SoR_"..Window_Name.."_TIMER_BG",TimeUtils.FormatTimeCondensed(RoR_SoR.Pairings[k].Timer))						
+				end	
+				
+				if RoR_SoR.Pairings[k].Timer2 and RoR_SoR.Pairings[k].Timer2 > 0 then
+				
+						RoR_SoR.Pairings[k].Timer2 = RoR_SoR.Pairings[k].Timer2 - elapsedTime
+						LabelSetText("SoR_"..Window_Name.."Lock_STATUS",TimeUtils.FormatTimeCondensed(RoR_SoR.Pairings[k].Timer2))
+						LabelSetText("SoR_"..Window_Name.."Lock_STATUS_BG",TimeUtils.FormatTimeCondensed(RoR_SoR.Pairings[k].Timer2))						
+				end	
+			else
+			--RoR_SoR.ZoneTimer[k] = nil
+			end
+		end
+	end
+
+	
+	for k,v in pairs(RoR_SoR.SafeKeep) do 
+					local FillStart = 90
+					local FillEnd = 360
+			if DoesWindowExist("SoR_"..k) then	
+				if RoR_SoR.SafeKeep[k][1] > 0 and 600 > RoR_SoR.SafeKeep[k][1] then 
+					RoR_SoR.SafeKeep[k][1] = RoR_SoR.SafeKeep[k][1] - elapsedTime
+					LabelSetText("SoR_"..k.."KEEP1SAFETIMER",TimeUtils.FormatTimeCondensed(RoR_SoR.SafeKeep[k][1]))
+					LabelSetText("SoR_"..k.."KEEP1SAFETIMERBG",LabelGetText("SoR_"..k.."KEEP1SAFETIMER")) 
+					local perc1 = RoR_SoR.SafeKeep[k][1]/60
+					CircleImageSetFillParams("SoR_"..k.."KEEP1SAFECircle", FillStart,   FillEnd-(perc1 * 36)) 
+					
+				end					
+					
+				if RoR_SoR.SafeKeep[k][2] > 0 and 600 > RoR_SoR.SafeKeep[k][2] then				
+					RoR_SoR.SafeKeep[k][2] = RoR_SoR.SafeKeep[k][2] - elapsedTime
+					LabelSetText("SoR_"..k.."KEEP2SAFETIMER",TimeUtils.FormatTimeCondensed(RoR_SoR.SafeKeep[k][2]))
+					LabelSetText("SoR_"..k.."KEEP2SAFETIMERBG",LabelGetText("SoR_"..k.."KEEP2SAFETIMER")) 
+					local perc2 = RoR_SoR.SafeKeep[k][2]/60
+					CircleImageSetFillParams("SoR_"..k.."KEEP2SAFECircle", FillStart,   FillEnd-(perc2 * 36)) 		
+				end
+					end
+	end
+
 	if RoR_Window_Scale ~= WindowGetScale("RoR_SoR_Main_Window") then
 		RoR_SoR.OnSizeUpdated()
 		RoR_Window_Scale = WindowGetScale("RoR_SoR_Main_Window")
 	end
+	
+
+	if HasReloaded == true then
+		--if the RoR_CitySiege table can't be found due to a reloadui, use the Backup table untill official table is present again
+		RoR_SoR.City_Status[GameData.CityId.CHAOS].ratingTimer = RoR_SoR.Pairings[161].Timer
+		RoR_SoR.City_Status[GameData.CityId.EMPIRE].ratingTimer = RoR_SoR.Pairings[162].Timer
+		
+		
+		RoR_SoR.City_Status[GameData.CityId.CHAOS].timeLeft = RoR_SoR.Pairings[161].Timer2
+		RoR_SoR.City_Status[GameData.CityId.EMPIRE].timeLeft = RoR_SoR.Pairings[162].Timer2
+		
+	else
+		--While the RoR_CitySiege table is present, save it into the backup table incase of an reloadui
+		if RoR_SoR.Pairings ~= nil then
+		RoR_SoR.City_Status[GameData.CityId.CHAOS] = RoR_CitySiege.GetCity(GameData.CityId.CHAOS) 			
+		RoR_SoR.Pairings[161].Timer = RoR_SoR.City_Status[GameData.CityId.CHAOS].ratingTimer
+		RoR_SoR.Pairings[161].Timer2 = RoR_SoR.City_Status[GameData.CityId.CHAOS].timeLeft
+
+		RoR_SoR.City_Status[GameData.CityId.EMPIRE] = RoR_CitySiege.GetCity(GameData.CityId.EMPIRE) 			
+		RoR_SoR.Pairings[162].Timer = RoR_SoR.City_Status[GameData.CityId.EMPIRE].ratingTimer			
+		RoR_SoR.Pairings[162].Timer2 = RoR_SoR.City_Status[GameData.CityId.EMPIRE].timeLeft	
+		end
+	end
+	
 end
 
 function RoR_SoR.OnSizeUpdated()
@@ -2028,9 +2248,9 @@ local function MakeCallBack( SelectedOption )
  end
  
   if RoR_SoR.Settings.ShowCity == true then
-	EA_Window_ContextMenu.AddMenuItem( L"<icon00057> Cities" , MakeCallBack(12), false, true )
+	EA_Window_ContextMenu.AddMenuItem( L"<icon00057> City sieges" , MakeCallBack(12), false, true )
   else
-   EA_Window_ContextMenu.AddMenuItem( L"<icon00058> Cities" ,MakeCallBack(12), false, true )
+   EA_Window_ContextMenu.AddMenuItem( L"<icon00058> City sieges" ,MakeCallBack(12), false, true )
  end
 
   if RoR_SoR.Settings.ShowPairings == true then
@@ -2229,7 +2449,7 @@ end
 function RoR_SoR.UpdateObjectives()
 local Zone
 if (GameData.Player.isInScenario) == true or (GameData.Player.isInSiege) == true then return end
-if RoR_SoR.ZoneNames[GameData.Player.zone][2] == nil then
+if RoR_SoR.ZoneNames[GameData.Player.zone] == nil or RoR_SoR.ZoneNames[GameData.Player.zone][2] == nil then
 --d("Player Zone")
 Zone = GameData.Player.zone
 else
@@ -2266,8 +2486,19 @@ function RoR_SoR.KeepClaimDialog()
 local function MakeCallBack()
 		    return function() SendChatText(L".claim", L"") end
 		end
-DialogManager.MakeTwoButtonDialog( L"Claim Keep?<br>This will cost your guild 80G", GetString(StringTables.Default.LABEL_YES),MakeCallBack(),GetString(StringTables.Default.LABEL_NO),nil )
+DialogManager.MakeTwoButtonDialog( L"Claim Keep?", GetString(StringTables.Default.LABEL_YES),MakeCallBack(),GetString(StringTables.Default.LABEL_NO),nil )
 end
+
+
+function RoR_SoR.KeepUnClaimDialog()
+local KeepNumber = WindowGetId (SystemData.ActiveWindow.name)
+
+local function MakeCallBack()
+		    return function() SendChatText(L"/guildreleasekeep "..towstring(KeepNumber), L"") end
+		end
+DialogManager.MakeTwoButtonDialog( L"Release Keep?", GetString(StringTables.Default.LABEL_YES),MakeCallBack(),GetString(StringTables.Default.LABEL_NO),nil )
+end
+
 
  function RoR_SoR.Offset(input)
  local input = tonumber(input)
