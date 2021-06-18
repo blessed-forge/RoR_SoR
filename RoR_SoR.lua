@@ -1,5 +1,5 @@
 if not RoR_SoR then RoR_SoR= {} end
-local version = 122
+local version = 124
 local ZoneLockTimer = 10
 local RoR_Window_Scale
 
@@ -11,6 +11,8 @@ local SEND_BEGIN = 1
 local SEND_FINISH = 2
 
 local HasReloaded = false
+
+local PopConvert = {["Scouts"]=L"0-9",["Parties"]=L"10-24",["Warbands"]=L"25-99",["Vanguard"]=L"100-199",["Battlehost"]=L"200-299",["Warhost"]=L"300+"}
 
 Popper = {m_HideCountdown = c_DEFAULT_HIDE_TIMER, m_IsShowing = false,}
 
@@ -26,15 +28,21 @@ RoR_SoR.Forts = {[4]=2,[10]=1,[104]=2,[110]=1,[204]=2,[210]=1}
 RoR_SoR.FortBG = {{10,4},{110,104},{210,204}}
 RoR_SoR.City = {[161]=2,[162]=1}
 RoR_SoR.CityCampaign = {[161]=4,[162]=3}
+RoR_SoR.Ram = {[1] = "RamOrder",[2] = "RamDestruction"}
 RoR_SoR.KeepLord = {[1] = "SoR_LordIcon",[2] = "SoR_LordIcon"}
 RoR_SoR.FortLord = {[1] = "Lord_1",[2] = "Lord_2"}
 RoR_SoR.ZoneNames = {[1]={1,7},[2]={2,8},[3]={3,3},[4]={4,4},[5]={5,5},[6]={6,11},[7]={1,7},[8]={2,8},[9]={9,9},[10]={10,10},[11]={6,11},[100]={100,106},[101]={107,101},[102]={102,108},[103]={103,103},[104]={104,108},[105]={105,105},[106]={100,106},[107]={107,101},[108]={102,108},[109]={109,109},[110]={110,110},[200]={200,206},[201]={207,201},[202]={202,208},[203]={203,203},[204]={204,204},[205]={205,205},[206]={200,206},[207]={207,201},[208]={202,208},[209]={209,209},[210]={210,210}}
 RoR_SoR.TierNames = {[1]={006,011,100,106,200,206},[2]={001,007,101,107,201,207},[3]={002,008,102,108,202,208},[4]={003,005,009,103,105,109,209,205,203}}
 RoR_SoR.ParingPortrait = {[1] = "PairingElvesSelected",[2] = "PairingEvCSelected",[3]="PairingGvDSelected"}
 RoR_SoR.KeepStatus = {}
+
+RoR_SoR.KeepHealth = {}
 RoR_SoR.ZoneStatus = {}
 RoR_SoR.KeepProgress = {[1]={},[2]={}}
 RoR_SoR.Pairings = {[1]={},[2]={},[3]={},[161]={},[162]={}}
+RoR_SoR.NumberWindows = {}
+--Number_Window_Template
+
 
 if not RoR_SoR.City_Status then RoR_SoR.City_Status = {} end
 
@@ -101,26 +109,7 @@ CreateWindow("RoR_SoR_Button", true)
 
 LayoutEditor.RegisterWindow( "RoR_SoR_Main_Window", L"SoR Anchor Window", L"SoR Anchor Window", true, true, true, nil )
 LayoutEditor.RegisterWindow( "RoR_SoR_Button", L"SoR Toggle Button", L"SoR Toggle Button", false, false, false, nil )	
-	
-RegisterEventHandler( SystemData.Events.ENTER_WORLD, "RoR_SoR.Enable" )
-RegisterEventHandler( SystemData.Events.INTERFACE_RELOADED, "RoR_SoR.Enable" )
-RegisterEventHandler(SystemData.Events.ALL_MODULES_INITIALIZED, "RoR_SoR.Enable")
 
-
-RegisterEventHandler(SystemData.Events.SCENARIO_END, "RoR_SoR.OnScenario")
-RegisterEventHandler(SystemData.Events.SCENARIO_BEGIN, "RoR_SoR.OnScenario")
-
-RegisterEventHandler(  SystemData.Events.PUBLIC_QUEST_ADDED,   "RoR_SoR.UpdateObjectives")
-RegisterEventHandler(  SystemData.Events.PUBLIC_QUEST_UPDATED, "RoR_SoR.UpdateObjectives")
-RegisterEventHandler(  SystemData.Events.PUBLIC_QUEST_INFO_UPDATED, "RoR_SoR.UpdateObjectives")
-RegisterEventHandler(  SystemData.Events.PUBLIC_QUEST_REMOVED, "RoR_SoR.UpdateObjectives")
-
-RegisterEventHandler( SystemData.Events.TOME_CARD_LIST_UPDATED, "RoR_SoR.UpdateCardRewards")
---RegisterEventHandler(SystemData.Events.TOME_STAT_TOTAL_CARDS_UPDATED, "RoR_SoR.UpdateCardRewards" )	
---RegisterEventHandler( SystemData.Events.PLAYER_COMBAT_FLAG_UPDATED, "RoR_SoR.OnCombat" )
-
-						
-RegisterEventHandler(TextLogGetUpdateEventId("Chat"), "RoR_SoR.OnChatLogUpdated")
 TextLogAddEntry("Chat", 0, L"<icon00057> RoR_SoR "..towstring(version)..L" Loaded.")
 LabelSetText("RoR_SoR_PopperLabel",L"State of Realm")
 	
@@ -152,7 +141,13 @@ RoR_SoR.HideChannel(65)
 local siegeWindow = "SiegeWeaponGeneralFireWindowChatLogDisplay"
 LogDisplaySetFilterState(siegeWindow, "Chat", 65, false)
 
-
+if(GameData.Player.career.line>0)
+  then
+    RoR_SoR:RegisterSelfEvents()
+  else
+    RegisterEventHandler(SystemData.Events.LOADING_END,"RoR_SoR.OnLoadingEnd")
+  end
+  
 RoR_SoR.stateMachineName = "RoR_SoR"
 RoR_SoR.state = {[SEND_BEGIN] = { handler=nil,time=RoR_SoR.StateTimer,nextState=SEND_FINISH } , [SEND_FINISH] = { handler=RoR_SoR.CheckCampaign,time=RoR_SoR.StateTimer,nextState=SEND_BEGIN, } , }
 RoR_SoR.StartMachine()
@@ -171,6 +166,31 @@ end
 RoR_SoR.Restack()
 end
 
+function RoR_SoR:RegisterSelfEvents()
+RegisterEventHandler( SystemData.Events.ENTER_WORLD, "RoR_SoR.Enable" )
+RegisterEventHandler( SystemData.Events.INTERFACE_RELOADED, "RoR_SoR.Enable" )
+RegisterEventHandler(SystemData.Events.ALL_MODULES_INITIALIZED, "RoR_SoR.Enable")
+
+
+RegisterEventHandler(SystemData.Events.SCENARIO_END, "RoR_SoR.OnScenario")
+RegisterEventHandler(SystemData.Events.SCENARIO_BEGIN, "RoR_SoR.OnScenario")
+
+RegisterEventHandler(  SystemData.Events.PUBLIC_QUEST_ADDED,   "RoR_SoR.UpdateObjectives")
+RegisterEventHandler(  SystemData.Events.PUBLIC_QUEST_UPDATED, "RoR_SoR.UpdateObjectives")
+RegisterEventHandler(  SystemData.Events.PUBLIC_QUEST_INFO_UPDATED, "RoR_SoR.UpdateObjectives")
+RegisterEventHandler(  SystemData.Events.PUBLIC_QUEST_REMOVED, "RoR_SoR.UpdateObjectives")
+
+--RegisterEventHandler( SystemData.Events.PLAYER_COMBAT_FLAG_UPDATED, "RoR_SoR.OnCombat" )						
+RegisterEventHandler(TextLogGetUpdateEventId("Chat"), "RoR_SoR.OnChatLogUpdated")
+RoR_SoR.Enable()
+
+end
+
+function RoR_SoR:OnLoadingEnd()
+  --register events
+  RoR_SoR:RegisterSelfEvents()
+  UnregisterEventHandler(SystemData.Events.LOADING_END,"RoR_SoR.OnLoadingEnd")
+end
 
 function RoR_SoR.StartMachine()
 	local stateMachine = TimedStateMachine.New( RoR_SoR.state,SEND_BEGIN)
@@ -218,18 +238,18 @@ if RoR_SoR.Settings.ShowCity == true then --contested City siege
 		end
 		end
 
-	
+end
 	--Normal city status:
 	--Map_ID,Realm_ID,City_ID
-	if not DoesWindowExist("SoR_161") then
+	if not DoesWindowExist("SoR_161") and  RoR_SoR.Settings.ShowCity_Status then
 		RoR_SoR.SET_CAMPAIGN("SoR_:161:2:4")
 	end
 	
-	if not DoesWindowExist("SoR_162") then
+	if not DoesWindowExist("SoR_162") and RoR_SoR.Settings.ShowCity_Status then
 		RoR_SoR.SET_CAMPAIGN("SoR_:162:1:3")		
 	end
 	
-	end
+	
 end
 
 function RoR_SoR.UpdateCardRewards(...)
@@ -273,30 +293,8 @@ function RoR_SoR.OnChatLogUpdated(updateType, filterType)
 	end
 end
 
-function RoR_SoR.HideChannel(channelId)
-	for _, wndGroup in ipairs(EA_ChatWindowGroups) do 
-		if wndGroup.used == true then
-			for tabId, tab in ipairs(wndGroup.Tabs) do
-				local tabName = EA_ChatTabManager.GetTabName( tab.tabManagerId )
-		
-				if tabName then
-					if tab.tabText ~= L"Debug" then
-						LogDisplaySetFilterState(tabName.."TextLog", "Chat", channelId, false)
-					else
-						LogDisplaySetFilterState(tabName.."TextLog", "Chat", channelId, true)
-						LogDisplaySetFilterColor(tabName.."TextLog", "Chat", channelId, 168, 187, 160 )
-					end
-				end
-				
-			end
-			
-		end
-		
-	end	
-end
-
 function RoR_SoR.GetBanner()
-	if RoR_SoR.Settings.DrawBanner then return 0 else return 6 end
+	if RoR_SoR.Settings.DrawBanner then return -3 else return 6 end
 end		
 
 function RoR_SoR.GetParing(zone)
@@ -372,6 +370,7 @@ local text = towstring(text)
 						CreateWindowFromTemplate("SoR_"..Window_Name, "RoR_SoR_RealmTemplate", "Root")
 							RoR_SoR.BO_States[Window_Name] = {}
 							RoR_SoR.KEEP_States[Window_Name] = {}
+							RoR_SoR.KeepHealth[Window_Name] = {[1]=0,[2]=0}
 							local ZoneData = GetCampaignZoneData(tonumber(Window_Name))
 							RoR_SoR.OpenZones[Window_Name] =  tonumber(ZoneData.tierId)
 						LabelSetText("SoR_"..Window_Name.."_BannerLabel",towstring(GetZoneName(tonumber(Window_Name))))
@@ -510,7 +509,8 @@ function RoR_SoR.SET_CAMPAIGN(Input)
 		
 	DynamicImageSetTexture( "SoR_"..Window_Name.."BG", "City_"..Pairing_ID, 300, 105 )
 	
-		WindowSetTintColor("SoR_"..Window_Name.."Background2Border",Color.r,Color.g,Color.b)
+		--WindowSetTintColor("SoR_"..Window_Name.."Background2Border",Color.r,Color.g,Color.b)
+		WindowSetTintColor("SoR_"..Window_Name.."Background2Background2",Color.r,Color.g,Color.b)
 		LabelSetTextColor("SoR_"..Window_Name.."_BannerLabel",255,228,65)
 	else			
 	CreateWindowFromTemplate("SoR_"..Window_Name, "RoR_SoR_City_Status_Template", "Root")
@@ -568,7 +568,8 @@ function RoR_SoR.SET_PAIRINGS(Input)
 		DynamicImageSetTextureSlice("SoR_"..Window_Name.."InfoFort1","Fort-"..tostring(RoR_SoR.PairingIconSliceNames[Pairing_ID][Owning_Realm]))	
 		DynamicImageSetTextureSlice("SoR_"..Window_Name.."InfoFort2","Fort-"..tostring(RoR_SoR.PairingIconSliceNames[Pairing_ID][Owning_Realm]))
 		DynamicImageSetTexture( "SoR_"..Window_Name.."BG", "Fort_"..RoR_SoR.FortBG[Pairing_ID][Owning_Realm],0,0 )	
-		WindowSetTintColor("SoR_"..Window_Name.."Background2Border",Color.r,Color.g,Color.b)
+		--WindowSetTintColor("SoR_"..Window_Name.."Background2Border",Color.r,Color.g,Color.b)
+		WindowSetTintColor("SoR_"..Window_Name.."Background2Background2",Color.r,Color.g,Color.b)
 	else			
 	CreateWindowFromTemplate("SoR_"..Window_Name, "RoR_SoR_PairingTemplate", "Root")
 	RoR_SoR.OpenZones[Window_Name] =  tonumber(6)
@@ -608,8 +609,8 @@ function RoR_SoR.SET_CITY(Input)
 	
 	
 	if DoesWindowExist("SoR_"..Window_Name) then
-	
-	DynamicImageSetTextureOrientation ("SoR_"..Window_Name.."Background2Flames", Window_Name == "162")
+	 
+	DynamicImageSetTextureOrientation ("SoR_"..Window_Name.."Flames", Window_Name == "162")
 	
 	WindowClearAnchors("SoR_"..Window_Name.."Banner")
 	WindowAddAnchor("SoR_"..Window_Name.."Banner","top", "SoR_"..Window_Name, "top", 0,RoR_SoR.GetBanner())
@@ -637,7 +638,9 @@ function RoR_SoR.SET_CITY(Input)
 	LabelSetTextColor("SoR_"..Window_Name.."_BannerLabel",255,225,100)
 	local BannerW,_ = LabelGetTextDimensions("SoR_"..Window_Name.."_BannerLabel")
 	WindowSetDimensions( "SoR_"..Window_Name.."BannerMid", BannerW, 40 )				
-	DynamicImageSetTexture( "SoR_"..Window_Name.."Background2BG", "Fort_"..Window_Name,0,0 )		
+	DynamicImageSetTexture( "SoR_"..Window_Name.."BG", "Fort_"..Window_Name,0,0 )		
+	
+	WindowSetTintColor("SoR_"..Window_Name.."Background2Background2",180,0,255)
 	
 		RoR_SoR.ZoneTimer[Window_Name] = ZoneLockTimer
 		RoR_SoR.Timers[Window_Name][1] = tonumber(C_Timer)
@@ -664,7 +667,7 @@ function RoR_SoR.SET_CITY(Input)
 	RoR_SoR.Timers[Window_Name] = {}	
 	RoR_SoR.City[Window_Name] = {BO={},Owner={},Stage=0,Health=L""}		
 	RoR_SoR.SET_CITY(SoR_FORT_SPLIT_TEXT_STREAM)
-	WindowStartAlphaAnimation( "SoR_"..Window_Name.."Background2Flames", Window.AnimationType.LOOP, 1.0, 0.2, 0.5, false, 0.0, 0 ) --start the Burning BO pulse	
+	WindowStartAlphaAnimation( "SoR_"..Window_Name.."Flames", Window.AnimationType.LOOP, 1.0, 0.2, 0.5, false, 0.0, 0 ) --start the Burning BO pulse	
 	end	
 	RoR_SoR.Restack()	
 end
@@ -684,6 +687,7 @@ function RoR_SoR.SET_FORT(Input)
 
 	WindowClearAnchors("SoR_"..Window_Name.."Banner")
 	WindowAddAnchor("SoR_"..Window_Name.."Banner","top", "SoR_"..Window_Name, "top", 0,RoR_SoR.GetBanner())
+	WindowSetTintColor("SoR_"..Window_Name.."Background2Background2",217,164,10)		
 	
 			local F_attackers = 0
 			local F_defenders = 0
@@ -704,7 +708,7 @@ function RoR_SoR.SET_FORT(Input)
 	local BannerW,_ = LabelGetTextDimensions("SoR_"..Window_Name.."_BannerLabel")
 	WindowSetDimensions( "SoR_"..Window_Name.."BannerMid", BannerW, 40 )			
 	DynamicImageSetTexture( "SoR_"..Window_Name.."KEEP1KEEPICON", RoR_SoR.GetKeepTexture(RoR_SoR.Forts[tonumber(Window_Name)],1),42,42 )	
-	DynamicImageSetTexture( "SoR_"..Window_Name.."Background2BG", "Fort_"..Window_Name,0,0 )		
+	DynamicImageSetTexture( "SoR_"..Window_Name.."BG", "Fort_"..Window_Name,0,0 )		
 	
 		if F_Stage == 1 then
 			local F_Timer = tonumber(SoR_FORT_SPLIT_TEXT_STREAM[4])
@@ -1045,7 +1049,7 @@ function RoR_SoR.SET_KEEP(Input)
 
 --check if Fort Data:	
 	if RoR_SoR.Forts[tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[2])] ~= nil then
-		if DoesWindowExist("SoR_"..Window_Name) then	
+		if DoesWindowExist("SoR_"..Window_Name) then		
 		local F_ZoneID = SoR_KEEP_SPLIT_TEXT_STREAM[2]
 		local F_AAO = StringSplit(tostring(SoR_KEEP_SPLIT_TEXT_STREAM[4]), ",") 		
 		local F_Order_Pop = SoR_KEEP_SPLIT_TEXT_STREAM[5]			
@@ -1070,10 +1074,17 @@ function RoR_SoR.SET_KEEP(Input)
 					RoR_SoR.ZoneStatus[Window_Name].Order_Pop = tonumber(F_Order_Pop) or 0	
 					RoR_SoR.ZoneStatus[Window_Name].Destro_Pop = tonumber(F_Destro_Pop) or 0
 					RoR_SoR.ZoneStatus[Window_Name].AAO = F_AAO
+					
 		end
+		
+	
+		
 	else	
 	--check if Keep data:	
-		if DoesWindowExist("SoR_"..Window_Name) then	
+		if DoesWindowExist("SoR_"..Window_Name) then
+		
+				if not RoR_SoR.KeepHealth[Window_Name] then RoR_SoR.KeepHealth[Window_Name] = {[1]=0,[2]=0} end
+				
 				local KEEP1_ID = tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[3])
 				local KEEP2_ID = tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[12])	
 				local KEEP1_State = tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[6])
@@ -1087,7 +1098,7 @@ function RoR_SoR.SET_KEEP(Input)
 				
 				local KEEP1_Door1 = tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[9])			
 				local KEEP1_Door2 = tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[8])			
-				
+
 				local KEEP2_Door1 = tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[18])								
 				local KEEP2_Door2 = tonumber(SoR_KEEP_SPLIT_TEXT_STREAM[17])
 				
@@ -1105,6 +1116,8 @@ function RoR_SoR.SET_KEEP(Input)
 	
 				WindowClearAnchors("SoR_"..Window_Name.."Banner")
 				WindowAddAnchor("SoR_"..Window_Name.."Banner","top", "SoR_"..Window_Name, "top", 0,RoR_SoR.GetBanner())
+				
+				WindowSetTintColor("SoR_"..Window_Name.."Background2Background2",175,175,175)		
 	
 				if not RoR_SoR.KeepProgress[1][Window_Name] then RoR_SoR.KeepProgress[1][Window_Name] = 0 end
 				if not RoR_SoR.KeepProgress[2][Window_Name] then RoR_SoR.KeepProgress[2][Window_Name] = 0 end
@@ -1115,6 +1128,13 @@ function RoR_SoR.SET_KEEP(Input)
 					
 					if  tonumber(RoR_SoR.KeepProgress[1][Window_Name]) < (tonumber(KEEP1_Rank[2])) then
 						WindowStartAlphaAnimation("SoR_"..Window_Name.."KEEP1PROGRESSBLINK", 1, 1.0, 0.0, 1.5, true, 0.0, 0 ) --start the Door2 pulse
+						local Number_Randomizer = math.random(999)
+						RoR_SoR.NumberWindows[Number_Randomizer] = {timer=2.5}
+						CreateWindowFromTemplate("SoR_Number_Window"..Number_Randomizer, "Number_Window_Template", "SoR_"..Window_Name.."KEEP1PROGRESS")						
+						WindowStartAlphaAnimation("SoR_Number_Window"..Number_Randomizer, 1, 1.0, 0.0, 1.5, true, 1.5, 0 ) --start the Door2 pulse
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."Label",L"+"..towstring(tonumber(KEEP1_Rank[2])-tonumber(RoR_SoR.KeepProgress[1][Window_Name])))
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."LabelBG",L"+"..towstring(tonumber(KEEP1_Rank[2])-tonumber(RoR_SoR.KeepProgress[1][Window_Name])))
+						WindowSetScale("SoR_Number_Window"..Number_Randomizer,WindowGetScale("RoR_SoR_Main_Window"))
 					end
 					
 					local BarWidth,BarHeight = WindowGetDimensions( "SoR_"..Window_Name.."KEEP1PROGRESS")
@@ -1132,6 +1152,13 @@ function RoR_SoR.SET_KEEP(Input)
 					
 					if  tonumber(RoR_SoR.KeepProgress[2][Window_Name]) < (tonumber(KEEP2_Rank[2])) then
 						WindowStartAlphaAnimation("SoR_"..Window_Name.."KEEP2PROGRESSBLINK", 1, 1.0, 0.0, 1.5, true, 0.0, 0 ) --start the Door2 pulse
+						local Number_Randomizer = math.random(999)
+						RoR_SoR.NumberWindows[Number_Randomizer] = {timer=2.5}
+						CreateWindowFromTemplate("SoR_Number_Window"..Number_Randomizer, "Number_Window_Template", "SoR_"..Window_Name.."KEEP2PROGRESS")						
+						WindowStartAlphaAnimation("SoR_Number_Window"..Number_Randomizer, 1, 1.0, 0.0, 1.5, true, 1.5, 0 ) --start the Door2 pulse
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."Label",L"+"..towstring(tonumber(KEEP2_Rank[2])-tonumber(RoR_SoR.KeepProgress[2][Window_Name])))
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."LabelBG",L"+"..towstring(tonumber(KEEP2_Rank[2])-tonumber(RoR_SoR.KeepProgress[2][Window_Name])))
+						WindowSetScale("SoR_Number_Window"..Number_Randomizer,WindowGetScale("RoR_SoR_Main_Window"))
 					end
 					
 					local BarWidth,BarHeight = WindowGetDimensions( "SoR_"..Window_Name.."KEEP2PROGRESS")
@@ -1205,18 +1232,37 @@ function RoR_SoR.SET_KEEP(Input)
 --GameData.Guild.m_GuildName			
 				
 	--Calculate and show AAO and Population	
+	local Order_Pop
+	local Destro_Pop
+	
+if RoR_SoR.Settings.AAONumbers == true then
+	Order_Pop = PopConvert[tostring(SoR_KEEP_SPLIT_TEXT_STREAM[22])] or SoR_KEEP_SPLIT_TEXT_STREAM[22]
+	Destro_Pop = PopConvert[tostring(SoR_KEEP_SPLIT_TEXT_STREAM[23])] or SoR_KEEP_SPLIT_TEXT_STREAM[23]
+else
+	Order_Pop = SoR_KEEP_SPLIT_TEXT_STREAM[22]
+	Destro_Pop = SoR_KEEP_SPLIT_TEXT_STREAM[23]
+end
 
-					RoR_SoR.ZoneStatus[Window_Name].Order_Pop = SoR_KEEP_SPLIT_TEXT_STREAM[22] or 0	
-					RoR_SoR.ZoneStatus[Window_Name].Destro_Pop = SoR_KEEP_SPLIT_TEXT_STREAM[23] or 0
+					RoR_SoR.ZoneStatus[Window_Name].Order_Pop = Order_Pop
+					RoR_SoR.ZoneStatus[Window_Name].Destro_Pop = Destro_Pop
 				
 				RoR_SoR.ZoneStatus[Window_Name].AAO = StringSplit(tostring(SoR_KEEP_SPLIT_TEXT_STREAM[21]), ",")
 
 				for k,v in pairs(RoR_SoR.TierNames[4]) do
 					if tostring(v) == tostring(Window_Name) then
+					
+					if RoR_SoR.Settings.AAONumbers == true then
+							Order_Pop = PopConvert[tostring(SoR_KEEP_SPLIT_TEXT_STREAM[23])] or SoR_KEEP_SPLIT_TEXT_STREAM[23]
+							Destro_Pop = PopConvert[tostring(SoR_KEEP_SPLIT_TEXT_STREAM[24])] or SoR_KEEP_SPLIT_TEXT_STREAM[24]
+					else
+							Order_Pop = SoR_KEEP_SPLIT_TEXT_STREAM[23]
+							Destro_Pop = SoR_KEEP_SPLIT_TEXT_STREAM[24]
+					end
+											
 						RoR_SoR.ZoneStatus[Window_Name].AAO = StringSplit(tostring(SoR_KEEP_SPLIT_TEXT_STREAM[22]), ",")
 						
-						RoR_SoR.ZoneStatus[Window_Name].Order_Pop = SoR_KEEP_SPLIT_TEXT_STREAM[23] or 0	
-						RoR_SoR.ZoneStatus[Window_Name].Destro_Pop = SoR_KEEP_SPLIT_TEXT_STREAM[24] or 0
+						RoR_SoR.ZoneStatus[Window_Name].Order_Pop = Order_Pop
+						RoR_SoR.ZoneStatus[Window_Name].Destro_Pop = Destro_Pop
 						
 						
 						break
@@ -1336,8 +1382,15 @@ function RoR_SoR.SET_KEEP(Input)
 	
 		local BarWidth,BarHeight = WindowGetDimensions( "SoR_"..Window_Name.."KEEP1HPBAR")
 		local TotalSize = BarWidth / 100
-
-					
+	
+	local Keep1SiegeData = GetKeepData(KEEP1_ID)
+	if Keep1SiegeData.siege then
+		DynamicImageSetTextureSlice("SoR_"..Window_Name.."KEEP1RAM",RoR_SoR.Ram[KEEP1_Owner])
+		WindowSetShowing("SoR_"..Window_Name.."KEEP1RAM",Keep1SiegeData.siege[1].current>0)
+	else
+		WindowSetShowing("SoR_"..Window_Name.."KEEP1RAM",false)
+	end
+	
 	local LabelText = L""	
 		if KEEP1_State == 1	then	--Safe
 		LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",L"")
@@ -1353,11 +1406,34 @@ function RoR_SoR.SET_KEEP(Input)
 				RoR_SoR.KEEP_States[Window_Name][1] = 2		
 				WindowStartAlphaAnimation( "SoR_"..Window_Name.."KEEP1KEEPDOOR2", Window.AnimationType.LOOP, 1.0, 0.0, 0.5, false, 0.0, 0 ) --start the Door2 pulse
 			end
+
 			LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",LabelText)
 			LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH_BG",LabelText)		
 			RoR_SoR.KeepStatus[Window_Name][1] = LabelText
 			WindowSetShowing("SoR_"..Window_Name.."KEEP1HPBAR",LabelText ~= L"")
 			WindowSetDimensions( "SoR_"..Window_Name.."KEEP1HPBARBAR", math.abs(tonumber(KEEP1_Door2)*TotalSize), BarHeight )	
+	
+			if KEEP1_Door2 < RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner] then
+						local Number_Randomizer = math.random(999)
+						RoR_SoR.NumberWindows[Number_Randomizer] = {timer=2.5}
+						CreateWindowFromTemplate("SoR_Number_Window"..Number_Randomizer, "Number_Window_Template", "SoR_"..Window_Name.."KEEP1HEALTH")						
+						WindowStartAlphaAnimation("SoR_Number_Window"..Number_Randomizer, 1, 1.0, 0.0, 1.5, true, 1.5, 0 ) --start the Door2 pulse
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."Label",L"-"..towstring(RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner]-KEEP1_Door2))
+						LabelSetTextColor("SoR_Number_Window"..Number_Randomizer.."Label",DefaultColor.ORANGE.r,DefaultColor.ORANGE.g,DefaultColor.ORANGE.b)
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."LabelBG",L"-"..towstring(RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner]-KEEP1_Door2))
+						WindowSetScale("SoR_Number_Window"..Number_Randomizer,WindowGetScale("RoR_SoR_Main_Window"))
+			elseif KEEP1_Door2 > RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner] then
+						local Number_Randomizer = math.random(999)
+						RoR_SoR.NumberWindows[Number_Randomizer] = {timer=2.5}
+						CreateWindowFromTemplate("SoR_Number_Window"..Number_Randomizer, "Number_Window_Template", "SoR_"..Window_Name.."KEEP1HEALTH")						
+						WindowStartAlphaAnimation("SoR_Number_Window"..Number_Randomizer, 1, 1.0, 0.0, 1.5, true, 1.5, 0 ) --start the Door2 pulse
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."Label",L"+"..towstring(KEEP1_Door2 - RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner]))
+						LabelSetTextColor("SoR_Number_Window"..Number_Randomizer.."Label",DefaultColor.GREEN.r,DefaultColor.GREEN.g,DefaultColor.GREEN.b)
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."LabelBG",L"+"..towstring(KEEP1_Door2 - RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner]))
+						WindowSetScale("SoR_Number_Window"..Number_Randomizer,WindowGetScale("RoR_SoR_Main_Window"))
+			end
+	
+			RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner] = KEEP1_Door2
 			
 		elseif KEEP1_State == 3	then	--InnerDoor attacked
 			if KEEP1_Door1 > 0 then LabelText = towstring(KEEP1_Door1)..L"%" else LabelText = L"" end	
@@ -1365,12 +1441,41 @@ function RoR_SoR.SET_KEEP(Input)
 				RoR_SoR.KEEP_States[Window_Name][1] = 3		
 				WindowStartAlphaAnimation( "SoR_"..Window_Name.."KEEP1KEEPDOOR1", Window.AnimationType.LOOP, 1.0, 0.0, 0.5, false, 0.0, 0 ) --start the Door1 pulse
 			end	
+			
+			
 			LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",LabelText)	
 			LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH_BG",LabelText)	
 			RoR_SoR.KeepStatus[Window_Name][1] = LabelText	
 			WindowSetShowing("SoR_"..Window_Name.."KEEP1HPBAR", LabelText ~= L"")
 			WindowSetDimensions( "SoR_"..Window_Name.."KEEP1HPBARBAR", math.abs(tonumber(KEEP1_Door1)*TotalSize), BarHeight )	
-		elseif KEEP1_State == 4 then	--Lord Attacked			
+			
+			if KEEP1_Door1 < RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner] then
+						local Number_Randomizer = math.random(999)
+						RoR_SoR.NumberWindows[Number_Randomizer] = {timer=2.5}
+						CreateWindowFromTemplate("SoR_Number_Window"..Number_Randomizer, "Number_Window_Template", "SoR_"..Window_Name.."KEEP1HEALTH")						
+						WindowStartAlphaAnimation("SoR_Number_Window"..Number_Randomizer, 1, 1.0, 0.0, 1.5, true, 1.5, 0 ) --start the Door2 pulse
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."Label",L"-"..towstring(RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner]-KEEP1_Door1))
+						LabelSetTextColor("SoR_Number_Window"..Number_Randomizer.."Label",DefaultColor.ORANGE.r,DefaultColor.ORANGE.g,DefaultColor.ORANGE.b)
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."LabelBG",L"-"..towstring(RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner]-KEEP1_Door1))
+						WindowSetScale("SoR_Number_Window"..Number_Randomizer,WindowGetScale("RoR_SoR_Main_Window"))
+			elseif KEEP1_Door1 > RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner] then
+						local Number_Randomizer = math.random(999)
+						RoR_SoR.NumberWindows[Number_Randomizer] = {timer=2.5}
+						CreateWindowFromTemplate("SoR_Number_Window"..Number_Randomizer, "Number_Window_Template", "SoR_"..Window_Name.."KEEP1HEALTH")						
+						WindowStartAlphaAnimation("SoR_Number_Window"..Number_Randomizer, 1, 1.0, 0.0, 1.5, true, 1.5, 0 ) --start the Door2 pulse
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."Label",L"+"..towstring(KEEP1_Door1 - RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner]))
+						LabelSetTextColor("SoR_Number_Window"..Number_Randomizer.."Label",DefaultColor.GREEN.r,DefaultColor.GREEN.g,DefaultColor.GREEN.b)
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."LabelBG",L"+"..towstring(KEEP1_Door1 - RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner]))
+						WindowSetScale("SoR_Number_Window"..Number_Randomizer,WindowGetScale("RoR_SoR_Main_Window"))
+			end
+			
+			
+			
+			RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner] = KEEP1_Door1
+		elseif KEEP1_State == 4 then	--Lord Attacked	
+
+
+		
 		LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",towstring(KEEP1_Lord)..L"%")
 		LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH_BG",towstring(KEEP1_Lord)..L"%")
 		RoR_SoR.KeepStatus[Window_Name][1] = towstring(KEEP1_Lord)..L"%"	
@@ -1380,6 +1485,28 @@ function RoR_SoR.SET_KEEP(Input)
 				RoR_SoR.KEEP_States[Window_Name][1] = 4	
 				WindowStartAlphaAnimation( "SoR_"..Window_Name.."KEEP1LORD_ICON", Window.AnimationType.LOOP, 1.0, 0.0, 0.5, false, 0.0, 0 ) --start the Lord pulse			
 			end
+		
+			if KEEP1_Lord < RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner] then
+						local Number_Randomizer = math.random(999)
+						RoR_SoR.NumberWindows[Number_Randomizer] = {timer=2.5}
+						CreateWindowFromTemplate("SoR_Number_Window"..Number_Randomizer, "Number_Window_Template", "SoR_"..Window_Name.."KEEP1HEALTH")						
+						WindowStartAlphaAnimation("SoR_Number_Window"..Number_Randomizer, 1, 1.0, 0.0, 1.5, true, 1.5, 0 ) --start the Door2 pulse
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."Label",L"-"..towstring(RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner]-KEEP1_Lord))
+						LabelSetTextColor("SoR_Number_Window"..Number_Randomizer.."Label",DefaultColor.ORANGE.r,DefaultColor.ORANGE.g,DefaultColor.ORANGE.b)
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."LabelBG",L"-"..towstring(RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner]-KEEP1_Lord))
+						WindowSetScale("SoR_Number_Window"..Number_Randomizer,WindowGetScale("RoR_SoR_Main_Window"))
+			elseif KEEP1_Lord > RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner] then
+						local Number_Randomizer = math.random(999)
+						RoR_SoR.NumberWindows[Number_Randomizer] = {timer=2.5}
+						CreateWindowFromTemplate("SoR_Number_Window"..Number_Randomizer, "Number_Window_Template", "SoR_"..Window_Name.."KEEP1HEALTH")						
+						WindowStartAlphaAnimation("SoR_Number_Window"..Number_Randomizer, 1, 1.0, 0.0, 1.5, true, 1.5, 0 ) --start the Door2 pulse
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."Label",L"+"..towstring(KEEP1_Lord - RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner]))
+						LabelSetTextColor("SoR_Number_Window"..Number_Randomizer.."Label",DefaultColor.GREEN.r,DefaultColor.GREEN.g,DefaultColor.GREEN.b)
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."LabelBG",L"+"..towstring(KEEP1_Lord - RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner]))
+						WindowSetScale("SoR_Number_Window"..Number_Randomizer,WindowGetScale("RoR_SoR_Main_Window"))
+			end
+		
+		RoR_SoR.KeepHealth[Window_Name][KEEP1_Owner] = KEEP1_Lord
 		elseif KEEP1_State == 5	then	--Captured
 			RoR_SoR.KEEP_States[Window_Name][1] = 5	
 			LabelSetText("SoR_"..Window_Name.."KEEP1HEALTH",L"Captured")
@@ -1393,6 +1520,13 @@ function RoR_SoR.SET_KEEP(Input)
 		end	
 		
 		
+	local Keep2SiegeData = GetKeepData(KEEP2_ID)
+	if Keep2SiegeData.siege then
+		DynamicImageSetTextureSlice("SoR_"..Window_Name.."KEEP2RAM",RoR_SoR.Ram[KEEP2_Owner])
+		WindowSetShowing("SoR_"..Window_Name.."KEEP2RAM",Keep2SiegeData.siege[1].current>0)
+	else
+		WindowSetShowing("SoR_"..Window_Name.."KEEP2RAM",false)
+	end
 		--KEEP 2
 		WindowSetShowing("SoR_"..Window_Name.."KEEP2HPBAR",false)			
 		
@@ -1413,32 +1547,104 @@ function RoR_SoR.SET_KEEP(Input)
 				RoR_SoR.KEEP_States[Window_Name][2] = 2		
 				WindowStartAlphaAnimation( "SoR_"..Window_Name.."KEEP2KEEPDOOR2", Window.AnimationType.LOOP, 1.0, 0.0, 0.5, false, 0.0, 0 ) --start the Door2 pulse
 			end
+
+			
 			LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH",LabelText)
 			LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH_BG",LabelText)
 			RoR_SoR.KeepStatus[Window_Name][2] = LabelText	
 			WindowSetShowing("SoR_"..Window_Name.."KEEP2HPBAR",LabelText ~= L"")
 			WindowSetDimensions( "SoR_"..Window_Name.."KEEP2HPBARBAR", math.abs(tonumber(KEEP2_Door2)*TotalSize2), BarHeight2 )	
+			
+			if KEEP2_Door2 < RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner] then
+						local Number_Randomizer = math.random(999)
+						RoR_SoR.NumberWindows[Number_Randomizer] = {timer=2.5}
+						CreateWindowFromTemplate("SoR_Number_Window"..Number_Randomizer, "Number_Window_Template", "SoR_"..Window_Name.."KEEP2HEALTH")						
+						WindowStartAlphaAnimation("SoR_Number_Window"..Number_Randomizer, 1, 1.0, 0.0, 1.5, true, 1.5, 0 ) --start the Door2 pulse
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."Label",L"-"..towstring(RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner]-KEEP2_Door2))
+						LabelSetTextColor("SoR_Number_Window"..Number_Randomizer.."Label",DefaultColor.ORANGE.r,DefaultColor.ORANGE.g,DefaultColor.ORANGE.b)
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."LabelBG",L"-"..towstring(RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner]-KEEP2_Door2))
+						WindowSetScale("SoR_Number_Window"..Number_Randomizer,WindowGetScale("RoR_SoR_Main_Window"))
+			elseif KEEP2_Door2 > RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner] then
+						local Number_Randomizer = math.random(999)
+						RoR_SoR.NumberWindows[Number_Randomizer] = {timer=2.5}
+						CreateWindowFromTemplate("SoR_Number_Window"..Number_Randomizer, "Number_Window_Template", "SoR_"..Window_Name.."KEEP2HEALTH")						
+						WindowStartAlphaAnimation("SoR_Number_Window"..Number_Randomizer, 1, 1.0, 0.0, 1.5, true, 1.5, 0 ) --start the Door2 pulse
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."Label",L"+"..towstring(KEEP2_Door2 - RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner]))
+						LabelSetTextColor("SoR_Number_Window"..Number_Randomizer.."Label",DefaultColor.GREEN.r,DefaultColor.GREEN.g,DefaultColor.GREEN.b)
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."LabelBG",L"+"..towstring(KEEP2_Door2 - RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner]))
+						WindowSetScale("SoR_Number_Window"..Number_Randomizer,WindowGetScale("RoR_SoR_Main_Window"))
+			end
+			
+			
+			RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner] = KEEP2_Door2
 		elseif KEEP2_State == 3	then	--InnerDoor attacked
 			if KEEP2_Door1 > 0 then LabelText = towstring(KEEP2_Door1)..L"%" else LabelText = L"" end
 			if RoR_SoR.KEEP_States[Window_Name][2] ~= 3 then
 				RoR_SoR.KEEP_States[Window_Name][2] = 3		
 				WindowStartAlphaAnimation( "SoR_"..Window_Name.."KEEP2KEEPDOOR1", Window.AnimationType.LOOP, 1.0, 0.0, 0.5, false, 0.0, 0 ) --start the Door1 pulse
 			end	
+			
+			
 			LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH",LabelText)	
 			LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH_BG",LabelText)
 			WindowSetShowing("SoR_"..Window_Name.."KEEP2HPBAR",LabelText ~= L"")
-			WindowSetDimensions( "SoR_"..Window_Name.."KEEP2HPBARBAR", math.abs(tonumber(KEEP2_Door1)*TotalSize2), BarHeight2 )			
-			RoR_SoR.KeepStatus[Window_Name][2] = LabelText			
+			WindowSetDimensions( "SoR_"..Window_Name.."KEEP2HPBARBAR", math.abs(tonumber(KEEP2_Door1)*TotalSize2), BarHeight2 )		
+			RoR_SoR.KeepStatus[Window_Name][2] = LabelText	
+			
+			if KEEP2_Door1 < RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner] then
+						local Number_Randomizer = math.random(999)
+						RoR_SoR.NumberWindows[Number_Randomizer] = {timer=2.5}
+						CreateWindowFromTemplate("SoR_Number_Window"..Number_Randomizer, "Number_Window_Template", "SoR_"..Window_Name.."KEEP2HEALTH")						
+						WindowStartAlphaAnimation("SoR_Number_Window"..Number_Randomizer, 1, 1.0, 0.0, 1.5, true, 1.5, 0 ) --start the Door2 pulse
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."Label",L"-"..towstring(RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner]-KEEP2_Door1))
+						LabelSetTextColor("SoR_Number_Window"..Number_Randomizer.."Label",DefaultColor.ORANGE.r,DefaultColor.ORANGE.g,DefaultColor.ORANGE.b)
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."LabelBG",L"-"..towstring(RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner]-KEEP2_Door1))
+						WindowSetScale("SoR_Number_Window"..Number_Randomizer,WindowGetScale("RoR_SoR_Main_Window"))
+			elseif KEEP2_Door1 > RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner] then
+						local Number_Randomizer = math.random(999)
+						RoR_SoR.NumberWindows[Number_Randomizer] = {timer=2.5}
+						CreateWindowFromTemplate("SoR_Number_Window"..Number_Randomizer, "Number_Window_Template", "SoR_"..Window_Name.."KEEP2HEALTH")						
+						WindowStartAlphaAnimation("SoR_Number_Window"..Number_Randomizer, 1, 1.0, 0.0, 1.5, true, 1.5, 0 ) --start the Door2 pulse
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."Label",L"+"..towstring(KEEP2_Door1 - RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner]))
+						LabelSetTextColor("SoR_Number_Window"..Number_Randomizer.."Label",DefaultColor.GREEN.r,DefaultColor.GREEN.g,DefaultColor.GREEN.b)
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."LabelBG",L"+"..towstring(KEEP2_Door1 - RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner]))
+						WindowSetScale("SoR_Number_Window"..Number_Randomizer,WindowGetScale("RoR_SoR_Main_Window"))
+			end
+			
+			RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner] = KEEP2_Door1			
 		elseif KEEP2_State == 4 then	--Lord Attacked			
 		LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH",towstring(KEEP2_Lord)..L"%")
 		LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH_BG",towstring(KEEP2_Lord)..L"%")
 		RoR_SoR.KeepStatus[Window_Name][2] = towstring(KEEP2_Lord)..L"%"
 		WindowSetShowing("SoR_"..Window_Name.."KEEP2HPBAR",LabelGetText("SoR_"..Window_Name.."KEEP2HEALTH") ~= L"")
 		WindowSetDimensions( "SoR_"..Window_Name.."KEEP2HPBARBAR", math.abs(tonumber(KEEP2_Lord)*TotalSize2), BarHeight2 )			
+		
 			if RoR_SoR.KEEP_States[Window_Name][2] ~= 4 then
 				RoR_SoR.KEEP_States[Window_Name][2] = 4	
 				WindowStartAlphaAnimation( "SoR_"..Window_Name.."KEEP2LORD_ICON", Window.AnimationType.LOOP, 1.0, 0.0, 0.5, false, 0.0, 0 ) --start the Lord pulse			
 			end
+			
+			if KEEP2_Lord < RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner] then
+						local Number_Randomizer = math.random(999)
+						RoR_SoR.NumberWindows[Number_Randomizer] = {timer=2.5}
+						CreateWindowFromTemplate("SoR_Number_Window"..Number_Randomizer, "Number_Window_Template", "SoR_"..Window_Name.."KEEP2HEALTH")						
+						WindowStartAlphaAnimation("SoR_Number_Window"..Number_Randomizer, 1, 1.0, 0.0, 1.5, true, 1.5, 0 ) --start the Door2 pulse
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."Label",L"-"..towstring(RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner]-KEEP2_Lord))
+						LabelSetTextColor("SoR_Number_Window"..Number_Randomizer.."Label",DefaultColor.ORANGE.r,DefaultColor.ORANGE.g,DefaultColor.ORANGE.b)
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."LabelBG",L"-"..towstring(RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner]-KEEP2_Lord))
+						WindowSetScale("SoR_Number_Window"..Number_Randomizer,WindowGetScale("RoR_SoR_Main_Window"))
+			elseif KEEP2_Lord > RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner] then
+						local Number_Randomizer = math.random(999)
+						RoR_SoR.NumberWindows[Number_Randomizer] = {timer=2.5}
+						CreateWindowFromTemplate("SoR_Number_Window"..Number_Randomizer, "Number_Window_Template", "SoR_"..Window_Name.."KEEP2HEALTH")						
+						WindowStartAlphaAnimation("SoR_Number_Window"..Number_Randomizer, 1, 1.0, 0.0, 1.5, true, 1.5, 0 ) --start the Door2 pulse
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."Label",L"+"..towstring(KEEP2_Lord - RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner]))
+						LabelSetTextColor("SoR_Number_Window"..Number_Randomizer.."Label",DefaultColor.GREEN.r,DefaultColor.GREEN.g,DefaultColor.GREEN.b)
+						LabelSetText("SoR_Number_Window"..Number_Randomizer.."LabelBG",L"+"..towstring(KEEP2_Lord - RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner]))
+						WindowSetScale("SoR_Number_Window"..Number_Randomizer,WindowGetScale("RoR_SoR_Main_Window"))
+			end	
+			
+		RoR_SoR.KeepHealth[Window_Name][KEEP2_Owner] = KEEP2_Lord				
 		elseif KEEP2_State == 5	then	--Captured
 			RoR_SoR.KEEP_States[Window_Name][2] = 5
 			LabelSetText("SoR_"..Window_Name.."KEEP2HEALTH",L"Captured")
@@ -1646,10 +1852,10 @@ function RoR_SoR.TIMER_UPDATE(elapsedTime)
 				end
 			end		
 		WindowSetAlpha("SoR_"..k.."Background2",WindowGetAlpha("RoR_SoR_Main_Window"))
-		WindowSetShowing("SoR_"..k.."Background2",RoR_SoR.Settings.DrawBackground or false)
+		--WindowSetShowing("SoR_"..k.."Background2",RoR_SoR.Settings.DrawBackground or false)
 		WindowSetShowing("SoR_"..k.."Banner",RoR_SoR.Settings.DrawBanner or false)	
 			if DoesWindowExist("SoR_"..k.."BG") then
-				WindowSetAlpha("SoR_"..k.."BG",0.25*(WindowGetAlpha("RoR_SoR_Main_Window")))
+				WindowSetAlpha("SoR_"..k.."BG",0.3*(WindowGetAlpha("RoR_SoR_Main_Window")))
 				WindowSetShowing("SoR_"..k.."BG",RoR_SoR.Settings.DrawBackground)		
 			end	
 		end
@@ -1774,6 +1980,21 @@ function RoR_SoR.TIMER_UPDATE(elapsedTime)
 		RoR_SoR.City_Status[GameData.CityId.EMPIRE] = RoR_CitySiege.GetCity(GameData.CityId.EMPIRE) 			
 		RoR_SoR.Pairings[162].Timer = RoR_SoR.City_Status[GameData.CityId.EMPIRE].ratingTimer			
 		RoR_SoR.Pairings[162].Timer2 = RoR_SoR.City_Status[GameData.CityId.EMPIRE].timeLeft	
+		end
+	end
+	
+	if RoR_SoR.NumberWindows ~= nil then
+		for k,v in pairs(RoR_SoR.NumberWindows) do
+		if DoesWindowExist("SoR_Number_Window"..k) then
+			if v.timer > 0 then
+			RoR_SoR.NumberWindows[k].timer = v.timer - elapsedTime
+			else
+			DestroyWindow("SoR_Number_Window"..k)
+			RoR_SoR.NumberWindows[k] = nil			
+			end
+			else
+			RoR_SoR.NumberWindows[k] = nil
+		end
 		end
 	end
 	
@@ -2179,7 +2400,6 @@ LineWord1 = towstring(Line1)
 LineWord2 = towstring(CreateHyperLink(L"0",L"Order: "..towstring(RoR_SoR.ZoneStatus[tostring(Zone_Id)].Order_Pop), {75,75,255}, {} ))
 LineWord3 = towstring(CreateHyperLink(L"0",L"Destro: "..towstring(RoR_SoR.ZoneStatus[tostring(Zone_Id)].Destro_Pop), {255,25,25}, {} ))
 LineWord4 = L""
-
 	if RoR_SoR.ZoneStatus[tostring(Zone_Id)].AAO[1] ~= "0" then
 		local Color = RoR_SoR.RealmColors[(RoR_SoR.ZoneStatus[tostring(Zone_Id)].AAO[1])+3]
 		LineWord4 = L" · AAO: "..towstring(CreateHyperLink(L"0",towstring(GetRealmName(tonumber(RoR_SoR.ZoneStatus[tostring(Zone_Id)].AAO[1])))..L" "..towstring(RoR_SoR.ZoneStatus[tostring(Zone_Id)].AAO[2])..L"%", {Color.r,Color.g,Color.b}, {} ))
@@ -2253,6 +2473,12 @@ local function MakeCallBack( SelectedOption )
    EA_Window_ContextMenu.AddMenuItem( L"<icon00058> City sieges" ,MakeCallBack(12), false, true )
  end
 
+  if RoR_SoR.Settings.ShowCity_Status == true then
+	EA_Window_ContextMenu.AddMenuItem( L"<icon00057> City Status" , MakeCallBack(14), false, true )
+  else
+   EA_Window_ContextMenu.AddMenuItem( L"<icon00058> City Status" ,MakeCallBack(14), false, true )
+ end
+
   if RoR_SoR.Settings.ShowPairings == true then
 	EA_Window_ContextMenu.AddMenuItem( L"<icon00057> Locked Pairings" , MakeCallBack(13), false, true )
   else
@@ -2299,6 +2525,14 @@ local function MakeCallBack( SelectedOption )
   else
    EA_Window_ContextMenu.AddMenuItem(L"<icon00058> Show Unclaimed Label" ,MakeCallBack(11), false, true )
    end
+   
+    if RoR_SoR.Settings.AAONumbers == true then
+  EA_Window_ContextMenu.AddMenuItem( L"Show AAO Labels" , MakeCallBack(15), false, true )
+  else
+   EA_Window_ContextMenu.AddMenuItem(L"Show AAO Numbers" ,MakeCallBack(15), false, true )
+   end  
+ 
+   
 	--EA_Window_ContextMenu.AddMenuItem( GetString( StringTables.Default.LABEL_SET_OPACITY ), EA_Window_ContextMenu.OnWindowOptionsSetAlpha, false, true )
 EA_Window_ContextMenu.AddMenuItem( L"Set Alpha...", RoR_SoR.OnWindowOptionsSetOpacity, false, true )	
 	EA_Window_ContextMenu.AddMenuItem(L"Set Scale...", RoR_SoR.OnWindowOptionsSetScale, false, true )
@@ -2323,6 +2557,8 @@ function RoR_SoR.ToggleShow(SelectedOption)
 	elseif SelectedOption == 11 then RoR_SoR.Settings.ShowUnclaimed	 = not RoR_SoR.Settings.ShowUnclaimed	
 	elseif SelectedOption == 12 then RoR_SoR.Settings.ShowCity	 = not RoR_SoR.Settings.ShowCity	
 	elseif SelectedOption == 13 then RoR_SoR.Settings.ShowPairings	 = not RoR_SoR.Settings.ShowPairings	
+	elseif SelectedOption == 14 then RoR_SoR.Settings.ShowCity_Status = not RoR_SoR.Settings.ShowCity_Status; RoR_SoR.ZoneTimer["P_161"] = 0.1;RoR_SoR.ZoneTimer["P_162"] = 0.1
+	elseif SelectedOption == 15 then RoR_SoR.Settings.AAONumbers	 = not RoR_SoR.Settings.AAONumbers		
 	end
 	RoR_SoR.Enable()
 	return
@@ -2507,16 +2743,6 @@ end
  end
  
  
- --[[
- 			if RoR_SoR.Settings.OnlyActive == true then  
-				if (GameData.Player.zone ~= 161 and GameData.Player.zone ~= 162 and RoR_SoR.OpenZones[tostring(RoR_SoR.ZoneNames[GameData.Player.zone][2])] ~= nil) then
-					if not (RoR_SoR.ZoneNames[GameData.Player.zone][1] == tonumber(Window_Name) or not RoR_SoR.ZoneNames[GameData.Player.zone][2] == tonumber(Window_Name))then return end
-				end
-			end
- 
- 
- --]]
- 
 function RoR_SoR.ResetDialog()
 DialogManager.MakeTwoButtonDialog( L"Are you sure you want to reset SoR settings?", GetString(StringTables.Default.LABEL_YES),RoR_SoR.DefaultSettings,GetString(StringTables.Default.LABEL_NO),nil )
 end
@@ -2537,11 +2763,9 @@ function RoR_SoR.OnSlideWindowOptionsOpacity( slidePos )
     local alpha = slidePos
     
     -- Requirements call for 10%-100% range, not 0% to 100%.
-    if (alpha < 0.1) then
-        alpha = 0.1
+    if (alpha < 0.01) then
+        alpha = 0.01
     end
-    -- this if statement is a stop gap to prevent this call from happening with a bad window
-    -- the bad call when using ctrl+alt+del should be tracked down
     if (EA_Window_ContextMenu.activeWindow ~= nil) then
         WindowSetAlpha( "RoR_SoR_Main_Window", alpha )
     end
@@ -2603,6 +2827,13 @@ function RoR_SoR.CloseSetOffsetWindow()
     WindowSetShowing( "RoR_SoR_Offset", false )
 end
  
+ function RoR_SoR.Calc_Difference(value1,value2)
+ if value1 > value2 then
+	return L"-"..towstring(value2-value1)
+else
+	return L"+"..towstring(value1-value2)
+end
+end
  
  
 function RoR_SoR.DefaultSettings()
@@ -2613,6 +2844,7 @@ StackDir = 1,
 Offset = 1,
 Enabled = true,
 HideCombat = false,
+AAONumbers = true,
 HideScenario = false,
 ShowForts = true,
 DrawBackground = true,
@@ -2622,6 +2854,7 @@ ShowBONames = true,
 ShowUnclaimed = true,
 ShowPairings = true,
 ShowCity = true,
+ShowCity_Status = true,
 Version = version
 }
 WindowSetScale("RoR_SoR_Main_Window",0.753)
